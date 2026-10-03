@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS public.articles (
     verdict_fact_check VARCHAR(40) CHECK (verdict_fact_check IN ('FAKTA', 'MITOS', 'SEBAGIAN BENAR') OR verdict_fact_check IS NULL),
     quick_takeaway TEXT,
     related_product_id VARCHAR(100),
+    tiktok_url TEXT,
     view_count INT DEFAULT 0,
     published_at TIMESTAMPTZ DEFAULT NOW(),
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -74,6 +75,7 @@ CREATE TABLE IF NOT EXISTS public.products (
     specs JSONB DEFAULT '{}'::jsonb,
     shopee_url TEXT NOT NULL,
     tokopedia_url TEXT NOT NULL,
+    tiktok_url TEXT,
     verified_official BOOLEAN DEFAULT TRUE,
     verdict TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -159,5 +161,11 @@ VALUES
     ('dapur', 'Peralatan Dapur', 'Coffee', 5),
     ('lifestyle', 'Gaya Hidup', 'Watch', 6)
 ON CONFLICT (id) DO NOTHING;
+
+-- ==============================================================================
+-- 8. MIGRATION COMMANDS (JIKA SUDAH PERNAH MENJALANKAN SKEMA SEBELUMNYA)
+-- ==============================================================================
+ALTER TABLE public.articles ADD COLUMN IF NOT EXISTS tiktok_url TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS tiktok_url TEXT;
 
 -- Selesai! Skema ini 100% siap di-copy-paste ke SQL Editor Supabase.

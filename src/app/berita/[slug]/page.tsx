@@ -324,6 +324,19 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                         <span>Tokopedia</span>
                         <ExternalLink className="w-3 h-3 text-slate-400" />
                       </a>
+
+                      {relatedProduct.tiktokUrl && (
+                        <a
+                          href={relatedProduct.tiktokUrl}
+                          target="_blank"
+                          rel="noopener noreferrer nofollow"
+                          className="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-black text-white text-xs font-semibold py-2.5 px-4 rounded-xl shadow-xs transition-colors"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                          <span>TikTok Shop</span>
+                          <ExternalLink className="w-3 h-3 text-slate-400" />
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>

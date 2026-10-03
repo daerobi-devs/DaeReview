@@ -16,6 +16,7 @@ export interface Product {
   specs: Record<string, string>;
   shopeeUrl: string;
   tokopediaUrl: string;
+  tiktokUrl?: string;
   verifiedOfficial: boolean;
   verdict: string;
 }
@@ -37,6 +38,7 @@ export interface NewsArticle {
   verdictFactCheck?: "FAKTA" | "MITOS" | "SEBAGIAN BENAR";
   quickTakeaway?: string;
   isCustom?: boolean;
+  tiktokUrl?: string;
 }
 
 export const CATEGORIES = [

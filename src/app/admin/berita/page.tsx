@@ -65,12 +65,55 @@ export default function AdminBeritaPage() {
   const [verdictFactCheck, setVerdictFactCheck] = useState<"FAKTA" | "MITOS" | "SEBAGIAN BENAR">("MITOS");
   const [quickTakeaway, setQuickTakeaway] = useState("");
 
+  // TikTok Auto-Fetch States
+  const [tiktokUrl, setTiktokUrl] = useState("");
+  const [isScrapingTikTok, setIsScrapingTikTok] = useState(false);
+  const [tiktokScrapeNote, setTiktokScrapeNote] = useState<string | null>(null);
+
   // Image upload & compression states
   const [imageDataUrl, setImageDataUrl] = useState("");
   const [compressStats, setCompressStats] = useState<CompressResult | null>(null);
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressError, setCompressError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleScrapeTikTok = async () => {
+    if (!tiktokUrl.trim()) {
+      alert("Masukkan tautan video atau produk TikTok terlebih dahulu.");
+      return;
+    }
+
+    try {
+      setIsScrapingTikTok(true);
+      setTiktokScrapeNote(null);
+
+      const res = await fetch("/api/scrape/tiktok", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: tiktokUrl.trim() }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        if (!title && data.title) {
+          handleTitleChange(data.title);
+        }
+        if (!imageDataUrl && data.image) {
+          setImageDataUrl(data.image);
+        }
+        if (!summary && data.summary) {
+          setSummary(data.summary);
+        }
+        setTiktokScrapeNote(data.message || `Data berhasil ditarik dari ${data.source || "TikTok"}!`);
+      } else {
+        alert(data.error || "Gagal mengambil data dari TikTok.");
+      }
+    } catch (err: any) {
+      alert("Terjadi kesalahan saat memproses data TikTok.");
+    } finally {
+      setIsScrapingTikTok(false);
+    }
+  };
 
   // Load articles
   const loadArticles = () => {
@@ -183,6 +226,7 @@ export default function AdminBeritaPage() {
       verdictFactCheck: category === "Fakta vs Mitos" ? verdictFactCheck : undefined,
       quickTakeaway:
         category === "Fakta vs Mitos" ? quickTakeaway.trim() || summary.trim() : undefined,
+      tiktokUrl: tiktokUrl.trim() || undefined,
     };
 
     // Save to local storage & broadcast
@@ -210,6 +254,8 @@ export default function AdminBeritaPage() {
     setImageDataUrl("");
     setCompressStats(null);
     setQuickTakeaway("");
+    setTiktokUrl("");
+    setTiktokScrapeNote(null);
     setActiveTab("list");
   };
 
@@ -499,6 +545,60 @@ export default function AdminBeritaPage() {
               >
                 Gunakan Contoh Data
               </button>
+            </div>
+
+            {/* Auto-Fetch TikTok Affiliate Box */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 text-white shadow-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-cyan-400">
+                    Otomasi Link TikTok / TikTok Shop (Opsional)
+                  </span>
+                </div>
+                <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700">
+                  Auto-Fetch Preview
+                </span>
+              </div>
+
+              <p className="text-xs text-slate-300">
+                Punya link video review atau tautan produk afiliasi TikTok? Tempel link di sini untuk menarik judul & foto barang secara otomatis:
+              </p>
+
+              <div className="flex flex-col sm:flex-row items-center gap-2">
+                <input
+                  type="url"
+                  value={tiktokUrl}
+                  onChange={(e) => setTiktokUrl(e.target.value)}
+                  placeholder="https://vt.tiktok.com/... atau https://www.tiktok.com/@user/video/..."
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-xs focus:outline-hidden focus:border-cyan-400 font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={handleScrapeTikTok}
+                  disabled={isScrapingTikTok}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 text-xs font-bold transition-colors shrink-0 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {isScrapingTikTok ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                      <span>Menarik Data...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 text-slate-950" />
+                      <span>⚡ Tarik Data TikTok</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {tiktokScrapeNote && (
+                <div className="text-[11px] text-emerald-400 bg-emerald-950/40 border border-emerald-800/60 p-2 rounded-lg flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>{tiktokScrapeNote}</span>
+                </div>
+              )}
             </div>
 
             {/* Judul & Slug */}
