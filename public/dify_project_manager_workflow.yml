@@ -424,6 +424,7 @@ workflow:
 
           User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) DaeReview-ProjectManager/1.0'
         method: post
+        params: ''
         retry_config:
           max_retries: 2
           retry_enabled: true
