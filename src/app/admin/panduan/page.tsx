@@ -230,7 +230,7 @@ export default function AdminPanduanPage() {
     }
   };
 
-  // TikTok Scraper Handler
+  // Universal Store & Video Scraper Handler (TikTok, Tokopedia, Shopee)
   const handleScrapeTikTok = async () => {
     if (!tiktokInputUrl.trim()) return;
     setIsScrapingTikTok(true);
@@ -244,22 +244,43 @@ export default function AdminPanduanPage() {
       });
       const json = await res.json();
 
-      if (json.success && json.data) {
-        if (json.data.title && !name) {
-          setName(json.data.title.substring(0, 80));
+      const titleVal = json.title || json.data?.title;
+      const imageVal = json.image || json.data?.image;
+      const storeVal = json.store || json.data?.store;
+
+      if (json.success && (titleVal || imageVal)) {
+        if (titleVal && !name) {
+          setName(titleVal.substring(0, 100));
         }
-        if (json.data.image) {
-          setImage(json.data.image);
+        if (imageVal) {
+          setImage(imageVal);
         }
-        setTiktokUrl(tiktokInputUrl.trim());
+
+        // Auto-assign link ke input marketplace yang sesuai
+        const currentUrl = tiktokInputUrl.trim();
+        if (storeVal === "tokopedia" || currentUrl.includes("tokopedia.com")) {
+          setTokopediaUrl(currentUrl);
+        } else if (storeVal === "shopee" || currentUrl.includes("shopee.co.id")) {
+          setShopeeUrl(currentUrl);
+        } else {
+          setTiktokUrl(currentUrl);
+        }
+
+        const storeName =
+          storeVal === "tokopedia"
+            ? "Tokopedia"
+            : storeVal === "shopee"
+            ? "Shopee"
+            : "TikTok Shop";
+
         setTiktokScrapeSuccess(
-          `Data TikTok berhasil ditarik: ${json.data.title?.substring(0, 40)}...`
+          `Data berhasil ditarik dari ${storeName}: "${titleVal?.substring(0, 45)}..."`
         );
       } else {
-        alert(json.error || "Gagal menarik data dari link TikTok.");
+        alert(json.error || "Gagal menarik data dari link toko / TikTok.");
       }
     } catch (err: any) {
-      alert("Terjadi kesalahan saat menghubungi scraper TikTok: " + err.message);
+      alert("Terjadi kesalahan saat menghubungi scraper: " + err.message);
     } finally {
       setIsScrapingTikTok(false);
     }
@@ -817,23 +838,23 @@ export default function AdminPanduanPage() {
             )}
           </div>
 
-          {/* Quick Import via TikTok Link */}
+          {/* Quick Import via Store / TikTok Link */}
           <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-cyan-600" />
               <span className="text-xs font-bold text-blue-950 uppercase tracking-wider">
-                ⚡ Tarik Data Otomatis dari Link TikTok / TikTok Shop
+                ⚡ Tarik Data Otomatis dari Link Toko (Tokopedia, TikTok Shop, Shopee)
               </span>
             </div>
             <p className="text-xs text-slate-500">
-              Paste tautan video TikTok review atau produk TikTok Shop (misal: <code>https://vt.tiktok.com/...</code>) untuk otomatis menarik judul dan foto thumbnail HD.
+              Paste tautan produk toko Tokopedia (misal: <code>https://vt.tokopedia.com/t/...</code>), TikTok Shop, atau Shopee untuk otomatis menarik judul barang, foto produk HD, dan link marketplace resmi.
             </p>
             <div className="flex gap-2">
               <input
                 type="url"
                 value={tiktokInputUrl}
                 onChange={(e) => setTiktokInputUrl(e.target.value)}
-                placeholder="https://vt.tiktok.com/ZSjabc123/ atau https://www.tiktok.com/@toko/video/..."
+                placeholder="Paste link vt.tokopedia.com/t/... atau shopee.co.id/... atau vt.tiktok.com/..."
                 className="flex-1 px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-hidden focus:border-blue-900 font-mono"
               />
               <button
@@ -850,7 +871,7 @@ export default function AdminPanduanPage() {
                 ) : (
                   <>
                     <Zap className="w-3.5 h-3.5" />
-                    <span>Tarik Data TikTok</span>
+                    <span>Tarik Data Toko</span>
                   </>
                 )}
               </button>

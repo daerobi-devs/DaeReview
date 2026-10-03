@@ -14,7 +14,7 @@ export async function POST(request: Request) {
 
     const trimmedUrl = url.trim();
 
-    // 1. Validasi Keamanan: Pastikan hanya domain resmi TikTok & TikTok Shop Tokopedia (Anti-SSRF)
+    // 1. Validasi Keamanan: Pastikan hanya domain resmi TikTok, Tokopedia, dan Shopee (Anti-SSRF)
     const allowedDomains = [
       "tiktok.com",
       "www.tiktok.com",
@@ -26,7 +26,10 @@ export async function POST(request: Request) {
       "www.tokopedia.com",
       "vt.tokopedia.com",
       "shop-id.tokopedia.com",
-      "shop.tokopedia.com"
+      "shop.tokopedia.com",
+      "shopee.co.id",
+      "s.shopee.co.id",
+      "www.shopee.co.id"
     ];
 
     let parsedUrl: URL;
@@ -34,7 +37,7 @@ export async function POST(request: Request) {
       parsedUrl = new URL(trimmedUrl);
     } catch {
       return NextResponse.json(
-        { success: false, error: "Format URL tidak valid. Masukkan URL TikTok yang benar." },
+        { success: false, error: "Format URL tidak valid. Masukkan URL toko atau TikTok yang benar." },
         { status: 400 }
       );
     }
@@ -47,13 +50,13 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: "Domain tidak diizinkan. Harap masukkan tautan resmi TikTok / TikTok Shop Tokopedia.",
+          error: "Domain tidak diizinkan. Harap masukkan tautan resmi TikTok Shop, Tokopedia, atau Shopee.",
         },
         { status: 403 }
       );
     }
 
-    // 2. Deteksi Cepat Khusus Tautan TikTok Shop Tokopedia (vt.tokopedia.com)
+    // 2. Deteksi Cepat Khusus Tautan TikTok Shop Tokopedia (vt.tokopedia.com & shop-id.tokopedia.com)
     if (parsedUrl.hostname.includes("tokopedia.com") || parsedUrl.hostname.includes("shop.tiktok.com")) {
       try {
         const headRes = await fetch(trimmedUrl, {
@@ -73,24 +76,80 @@ export async function POST(request: Request) {
             try {
               const ogData = JSON.parse(decodeURIComponent(ogInfoParam));
               if (ogData.title) {
+                const img = ogData.image ? ogData.image.replace(/\\/g, "") : "";
                 return NextResponse.json({
                   success: true,
-                  type: "tiktok_shop_product",
+                  type: "tokopedia_product",
                   title: ogData.title,
-                  image: ogData.image ? ogData.image.replace(/\\/g, "") : "",
+                  image: img,
                   author: "TikTok Shop x Tokopedia",
+                  store: "tokopedia",
                   html: "",
                   source: "TikTok Shop Tokopedia Affiliate",
                   originalUrl: trimmedUrl,
+                  data: {
+                    title: ogData.title,
+                    image: img,
+                    store: "tokopedia",
+                    originalUrl: trimmedUrl,
+                  },
                 });
               }
             } catch {
-              // fallback ke parser di bawah
+              // fallback
             }
           }
         }
       } catch (tokopediaErr) {
         console.warn("Tokopedia redirect scraper warning:", tokopediaErr);
+      }
+    }
+
+    // 3. Deteksi Khusus Tautan Toko Shopee (shopee.co.id & s.shopee.co.id)
+    if (parsedUrl.hostname.includes("shopee.co.id")) {
+      try {
+        const shopeeRes = await fetch(trimmedUrl, {
+          method: "GET",
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+          },
+          redirect: "follow",
+        });
+
+        if (shopeeRes.ok) {
+          const html = await shopeeRes.text();
+          const ogTitleMatch =
+            html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i) ||
+            html.match(/<title>([^<]+)<\/title>/i);
+          const ogImageMatch =
+            html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i);
+
+          const title = ogTitleMatch ? ogTitleMatch[1].replace(/\s*\|\s*Shopee Indonesia$/i, "").trim() : "";
+          const image = ogImageMatch ? ogImageMatch[1] : "";
+
+          if (title || image) {
+            return NextResponse.json({
+              success: true,
+              type: "shopee_product",
+              title: title || "Produk Rekomendasi Shopee",
+              image: image,
+              author: "Shopee Official",
+              store: "shopee",
+              html: "",
+              source: "Shopee Indonesia",
+              originalUrl: trimmedUrl,
+              data: {
+                title: title || "Produk Rekomendasi Shopee",
+                image: image,
+                store: "shopee",
+                originalUrl: trimmedUrl,
+              },
+            });
+          }
+        }
+      } catch (shopeeErr) {
+        console.warn("Shopee scraper warning:", shopeeErr);
       }
     }
 
@@ -115,16 +174,23 @@ export async function POST(request: Request) {
           title: oembedData.title || "Review Produk TikTok",
           image: oembedData.thumbnail_url || "",
           author: oembedData.author_name || "Kreator TikTok",
+          store: "tiktok",
           html: oembedData.html || "",
           source: "TikTok oEmbed API",
           originalUrl: trimmedUrl,
+          data: {
+            title: oembedData.title || "Review Produk TikTok",
+            image: oembedData.thumbnail_url || "",
+            store: "tiktok",
+            originalUrl: trimmedUrl,
+          },
         });
       }
     } catch (oembedErr) {
       console.warn("oEmbed gagal, mencoba scraping OpenGraph...", oembedErr);
     }
 
-    // 3. Coba Metode 2: Server-Side Open Graph Scraper untuk TikTok Shop
+    // 4. Coba Metode 3: Server-Side Open Graph Scraper untuk TikTok Shop
     try {
       const pageRes = await fetch(trimmedUrl, {
         headers: {
@@ -168,8 +234,15 @@ export async function POST(request: Request) {
             image: image,
             summary: description,
             author: "TikTok Shop Official",
+            store: "tiktok",
             source: "OpenGraph Metadata",
             originalUrl: trimmedUrl,
+            data: {
+              title: title || "Produk Rekomendasi TikTok Shop",
+              image: image,
+              store: "tiktok",
+              originalUrl: trimmedUrl,
+            },
           });
         }
       }

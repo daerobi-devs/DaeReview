@@ -718,7 +718,7 @@ export default function AdminBeritaPage() {
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
                   <span className="text-xs font-bold uppercase tracking-wider text-cyan-400">
-                    Otomasi Link TikTok / TikTok Shop (Opsional)
+                    Otomasi Link Toko & Video (Tokopedia, TikTok Shop, Shopee)
                   </span>
                 </div>
                 <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700">
@@ -727,7 +727,7 @@ export default function AdminBeritaPage() {
               </div>
 
               <p className="text-xs text-slate-300">
-                Punya link video review atau tautan produk afiliasi TikTok? Tempel link di sini untuk menarik judul & foto barang secara otomatis:
+                Punya link produk afiliasi dari Tokopedia (misal: <code>vt.tokopedia.com/t/...</code>), TikTok Shop, atau Shopee? Tempel link di sini untuk menarik judul & foto barang secara otomatis:
               </p>
 
               <div className="flex flex-col sm:flex-row items-center gap-2">
@@ -735,7 +735,7 @@ export default function AdminBeritaPage() {
                   type="url"
                   value={tiktokUrl}
                   onChange={(e) => setTiktokUrl(e.target.value)}
-                  placeholder="https://vt.tiktok.com/... atau https://www.tiktok.com/@user/video/..."
+                  placeholder="https://vt.tokopedia.com/t/... atau https://shopee.co.id/... atau https://vt.tiktok.com/..."
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-xs focus:outline-hidden focus:border-cyan-400 font-mono"
                 />
                 <button
@@ -752,7 +752,7 @@ export default function AdminBeritaPage() {
                   ) : (
                     <>
                       <Sparkles className="w-3.5 h-3.5 text-slate-950" />
-                      <span>⚡ Tarik Data TikTok</span>
+                      <span>⚡ Tarik Data Toko</span>
                     </>
                   )}
                 </button>
