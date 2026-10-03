@@ -312,7 +312,7 @@ export async function POST(request: Request) {
 
         await answerCallbackQuery(cqId, "🚀 Menugaskan Tim 1: Newsroom...");
 
-        // Opsional: Otomatis picu workflow Dify jika API Key disetel
+        // Otomatis picu workflow Dify jika API Key disetel
         if (DIFY_NEWSROOM_API_KEY) {
           try {
             await fetch(`${DIFY_SERVER_URL}/v1/workflows/run`, {
@@ -323,9 +323,10 @@ export async function POST(request: Request) {
               },
               body: JSON.stringify({
                 inputs: {
-                  news_topic: topic,
-                  target_audience: "Pembaca Indonesia & Konsumen Cerdas",
-                  depth_level: "Investigatif & Mendalam",
+                  topic: topic,
+                  category: "Teknologi & AI",
+                  source_url: "",
+                  news_angle: angle || "Investigatif & Mendalam",
                 },
                 response_mode: "streaming",
                 user: `telegram-${chatId}`,
@@ -374,7 +375,7 @@ export async function POST(request: Request) {
 
         await answerCallbackQuery(cqId, "🔬 Menugaskan Tim 2: Product Lab...");
 
-        // Opsional: Otomatis picu workflow Dify jika API Key disetel
+        // Otomatis picu workflow Dify jika API Key disetel
         if (DIFY_PRODUCT_LAB_API_KEY) {
           try {
             await fetch(`${DIFY_SERVER_URL}/v1/workflows/run`, {
@@ -386,8 +387,9 @@ export async function POST(request: Request) {
               body: JSON.stringify({
                 inputs: {
                   product_name: topic,
-                  primary_category: "Gadget & Teknologi",
-                  comparison_benchmark: "Standar Pasar",
+                  category: "Gadget & Teknologi",
+                  marketplace_url: "",
+                  price_range: "Pasaran Indonesia",
                 },
                 response_mode: "streaming",
                 user: `telegram-${chatId}`,
