@@ -98,9 +98,10 @@ export async function POST(request: Request) {
       tiktokUrl,
     } = body;
 
-    if (!title || !summary) {
+    const effectiveSummary = (summary || body.excerpt || quickTakeaway || "").trim();
+    if (!title || !effectiveSummary) {
       return NextResponse.json(
-        { error: "Field 'title' dan 'summary' wajib diisi oleh Dify Agent." },
+        { error: "Field 'title' dan 'summary'/'excerpt' wajib diisi oleh Dify Agent." },
         { status: 400 }
       );
     }
@@ -111,14 +112,14 @@ export async function POST(request: Request) {
       ? content
       : typeof content === "string"
       ? content.split(/\n\s*\n/).filter((p: string) => p.trim().length > 0)
-      : [summary];
+      : [effectiveSummary];
 
     const newArticle: NewsArticle = {
       id: `dify-${Date.now()}`,
       title: title.trim(),
       slug: cleanSlug,
       category,
-      summary: summary.trim(),
+      summary: effectiveSummary,
       content: paragraphs,
       image:
         image ||
@@ -132,7 +133,7 @@ export async function POST(request: Request) {
       }).format(new Date()),
       isFactCheck: isFactCheck || category === "Fakta vs Mitos",
       verdictFactCheck: category === "Fakta vs Mitos" ? verdictFactCheck || "FAKTA" : undefined,
-      quickTakeaway: quickTakeaway || summary,
+      quickTakeaway: quickTakeaway || effectiveSummary,
       isTrending,
       relatedProductId,
       tiktokUrl: tiktokUrl || undefined,
