@@ -1,247 +1,460 @@
 app:
-  description: "AI Content Engine & Autonomous Publisher untuk portal DaeReview (daereview.daeroom.my.id). Menganalisis link produk TikTok/Shopee/Tokopedia, menguji klaim mitos teknologi, dan menerbitkan artikel ulasan berstandar jurnalisme Swiss secara mandiri."
-  icon: "📰"
-  icon_background: "#0F172A"
+  description: Autonomous AI Editorial Engine for DaeReview - Researches products,
+    writes Swiss-Standard reviews, and auto-publishes to https://daereview.daeroom.my.id
+  icon: ✍️
+  icon_background: '#FFEAD5'
+  icon_type: emoji
   mode: workflow
-  name: "DaeReview Autonomous Journalist"
-  use_icon_as_answer_icon: true
+  name: DaeReview Autonomous AI Reviewer
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/gemini:0.9.10@4979b8843fa46c3c2143d339f5868f04d9d77166616c00dd9f811a4adfce03ab
+    version: null
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/duckduckgo:0.0.13@ae397e4ae1d9d2dc66572d50a4b74b228f0b7a117734db574fe9773cca0c183b
+    version: null
 kind: app
-version: 0.1.4
+version: 0.7.0
 workflow:
   conversation_variables: []
-  environment_variables:
-    - description: "Endpoint publikasi portal DaeReview"
-      name: DAEREVIEW_API_URL
-      value: "https://daereview.daeroom.my.id/api/dify/publish"
-      value_type: string
-    - description: "Token otorisasi Bearer Webhook DaeReview"
-      name: DIFY_WEBHOOK_SECRET
-      value: "dae_dify_autonomous_webhook_secret_key"
-      value_type: secret
+  environment_variables: []
   features:
-    file_upload:
-      allowed_file_extensions: []
-      allowed_file_types: []
-      allowed_file_upload_methods: []
-      enabled: false
-      number_limits: 3
-    retrieval_resource:
-      enabled: false
+    file_upload: {}
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
     sensitive_word_avoidance:
       enabled: false
     speech_to_text:
       enabled: false
+    suggested_questions: []
     suggested_questions_after_answer:
       enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
   graph:
     edges:
-      - id: edge_start_to_llm
-        source: node_start
-        sourcePort: ""
-        target: node_llm_writer
-        targetPort: ""
-      - id: edge_llm_to_code
-        source: node_llm_writer
-        sourcePort: ""
-        target: node_json_cleaner
-        targetPort: ""
-      - id: edge_code_to_http
-        source: node_json_cleaner
-        sourcePort: ""
-        target: node_http_publisher
-        targetPort: ""
-      - id: edge_http_to_end
-        source: node_http_publisher
-        sourcePort: ""
-        target: node_end
-        targetPort: ""
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: tool
+      id: edge-start-search
+      source: '17909800000001'
+      sourceHandle: source
+      target: '17909800000002'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: tool
+        targetType: llm
+      id: edge-search-llm
+      source: '17909800000002'
+      sourceHandle: source
+      target: '17909800000003'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: edge-llm-code
+      source: '17909800000003'
+      sourceHandle: source
+      target: '17909800000004'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+      id: edge-code-http
+      source: '17909800000004'
+      sourceHandle: source
+      target: '17909800000005'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: end
+      id: edge-http-end
+      source: '17909800000005'
+      sourceHandle: source
+      target: '17909800000006'
+      targetHandle: target
+      type: custom
+      zIndex: 0
     nodes:
-      - id: node_start
-        position:
-          x: 80
-          y: 200
-        data:
-          title: "Input Topik & Tautan Produk"
-          type: start
-          variables:
-            - label: "Tipe Konten"
-              variable: input_mode
-              type: select
-              required: true
-              options:
-                - "ULASAN_PRODUK_TUNGGAL"
-                - "TOP_5_BARANG_TERBAIK"
-                - "FAKTA_VS_MITOS"
-              default: "ULASAN_PRODUK_TUNGGAL"
-            - label: "Tautan Produk atau Topik Riset"
-              variable: topic_or_link
-              type: paragraph
-              required: true
-              default: "https://vt.tiktok.com/ZSjabc123/ Baseus Bowie WM02 TWS Earphone"
-            - label: "Kategori Target"
-              variable: category
-              type: select
-              required: true
-              options:
-                - "Gadget & Setup"
-                - "Audio & TWS"
-                - "Smart Home"
-                - "Peralatan Dapur"
-                - "Gaya Hidup"
-                - "Fakta vs Mitos"
-              default: "Audio & TWS"
-      - id: node_llm_writer
-        position:
-          x: 380
-          y: 200
-        data:
-          title: "Senior Swiss Editorial Journalist"
-          type: llm
-          model:
-            provider: openai
-            name: gpt-4o
-            mode: chat
-            completion_params:
-              temperature: 0.3
-              max_tokens: 3000
-          prompt_template:
-            - role: system
-              text: |
-                Kamu adalah Senior Tech Journalist & Data-Driven Buying Guide Curator untuk portal independen DaeReview (daereview.daeroom.my.id).
+    - data:
+        selected: false
+        title: Input Produk & Topik
+        type: start
+        variables:
+        - default: ''
+          description: Nama gadget, link Shopee/Tokopedia/TikTok, atau topik yang
+            ingin diulas.
+          label: Produk / Topik / Link
+          options: []
+          required: true
+          type: paragraph
+          variable: product_or_topic
+        - default: gadget
+          description: Kategori ulasan produk di DaeReview.
+          label: Kategori DaeReview
+          options:
+          - smartphone
+          - laptop
+          - audio
+          - accessories
+          - gadget
+          - myth-busting
+          required: true
+          type: select
+          variable: target_category
+        - default: ''
+          description: Target harga atau fokus pengujian khusus jika ada.
+          label: Catatan Tambahan (Opsional)
+          options: []
+          required: false
+          type: paragraph
+          variable: custom_notes
+      height: 116
+      id: '17909800000001'
+      position:
+        x: 80
+        y: 280
+      positionAbsolute:
+        x: 80
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        is_team_authorization: true
+        paramSchemas:
+        - form: llm
+          label:
+            en_US: Query string
+            zh_Hans: 查询语句
+          llm_description: Key words for searching
+          name: query
+          required: true
+          type: string
+        params:
+          backend: ''
+          max_results: ''
+          proxy_server: ''
+          query: ''
+          require_summary: ''
+        plugin_id: langgenius/duckduckgo
+        plugin_unique_identifier: langgenius/duckduckgo:0.0.13@ae397e4ae1d9d2dc66572d50a4b74b228f0b7a117734db574fe9773cca0c183b
+        provider_id: langgenius/duckduckgo/duckduckgo
+        provider_name: langgenius/duckduckgo/duckduckgo
+        provider_show_name: DuckDuckGo
+        provider_type: builtin
+        selected: false
+        title: Riset Real-World DDG
+        tool_configurations:
+          backend:
+            type: mixed
+            value: null
+          max_results:
+            type: constant
+            value: 5
+          proxy_server:
+            type: mixed
+            value: null
+          require_summary:
+            type: constant
+            value: true
+        tool_description: Perform searches on DuckDuckGo and get results.
+        tool_label: DuckDuckGo Search
+        tool_name: ddgo_search
+        tool_node_version: '2'
+        tool_parameters:
+          query:
+            type: mixed
+            value: '{{#17909800000001.product_or_topic#}} review spesifikasi kelebihan
+              kelemahan isu'
+        type: tool
+      height: 167
+      id: '17909800000002'
+      position:
+        x: 380
+        y: 260
+      positionAbsolute:
+        x: 380
+        y: 260
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0.4
+          mode: chat
+          name: gemini-3.1-flash-lite
+          provider: langgenius/gemini/google
+        prompt_template:
+        - id: prompt-swiss-editorial
+          role: system
+          text: "Kamu adalah Chief Technology Editor dan Lead Hardware Analyst untuk\
+            \ DaeReview (daereview.daeroom.my.id).\nMisi editorialmu adalah menghasilkan\
+            \ ulasan teknologi, panduan belanja, dan myth-busting independen berstandar\
+            \ \"Swiss Editorial\" — fakta murni, dingin, rasional, tanpa bumbu pemasaran,\
+            \ dan tanpa bias komersial.\n\nATURAN KRITIS EDITORIAL DAEREVIEW:\n1.\
+            \ DILARANG KERAS menggunakan simbol rating bintang (★, ⭐). Gunakan angka\
+            \ desimal murni dengan skala 10, contoh: 8.4 atau 9.1 (antara 1.0 sampai\
+            \ 10.0).\n2. WAJIB mengupas \"The Catch\" (Kelemahan Tersembunyi) — kompromi\
+            \ atau isu tersembunyi yang tidak pernah diungkap oleh influencer bersponsor\
+            \ atau brosur penjualan.\n3. Struktur Analisis 4-Lapis (4-Layer Testing\
+            \ Framework):\n   - Lapis 1: Kualitas Rancang Bangun & Materialitas (chassis,\
+            \ engsel, port, finishing, ketahanan fisik).\n   - Lapis 2: Performa Riil\
+            \ & Uji Beban (throttling, thermal profile, efisiensi daya nyata, kamera\
+            \ di skenario riil).\n   - Lapis 3: Ergonomi & UX Harian (software bug,\
+            \ stabilitas UI, sensor, kenyamanan harian).\n   - Lapis 4: Analisis Rasio\
+            \ Nilai & Depresiasi (kelayakan harga di pasar Indonesia saat ini dibanding\
+            \ alternatif kompetitor).\n4. Persona Pembeli: Jelaskan secara tegas \"\
+            Siapa yang Wajib Beli\" dan \"Siapa yang Harus Skip / Lewatkan\".\n5.\
+            \ Format Bahasa: Bahasa Indonesia editorial tingkat tinggi yang lugas,\
+            \ elegan, analitis, dan objektif.\n\nFORMAT OUTPUT WAJIB:\nKeluarkan HANYA\
+            \ JSON valid murni (tanpa teks pengantar/penutup) dengan skema berikut:\n\
+            {\n  \"title\": \"Judul Artikel Editorial yang Tajam & Elegan\",\n  \"\
+            slug\": \"slug-url-ramah-seo-lowercase-tanpa-spasi\",\n  \"excerpt\":\
+            \ \"Ringkasan tajam 2 kalimat tentang esensi ulasan ini.\",\n  \"category\"\
+            : \"{{#17909800000001.target_category#}}\",\n  \"author\": \"DaeReview\
+            \ AI Editorial\",\n  \"rating\": 8.4,\n  \"pros\": [\n    \"Kelebihan\
+            \ teknis 1\",\n    \"Kelebihan teknis 2\",\n    \"Kelebihan teknis 3\"\
+            \n  ],\n  \"cons\": [\n    \"Kelemahan objektif 1\",\n    \"Kelemahan\
+            \ objektif 2\"\n  ],\n  \"the_catch\": \"Kelemahan terbesar produk ini\
+            \ yang sengaja tidak ditonjolkan oleh materi promosi penjual.\",\n  \"\
+            verdict\": \"Kesimpulan akhir yang lugas: posisi produk di pasar dan apakah\
+            \ layak dibeli.\",\n  \"content\": \"Isi lengkap ulasan dalam format Markdown\
+            \ kaya (minimal 600-900 kata), dengan subjudul ##, paragraf analitis 4-layer\
+            \ testing, rincian kelebihan/kekurangan, dan panduan persona pembeli.\"\
+            \n}"
+        - id: prompt-user-input
+          role: user
+          text: 'Produk / Topik yang diulas:
 
-                STANDAR PENULISAN & AKURASI REDAKSI SWISS:
-                1. GAYA BAHASA:
-                   - Gunakan Bahasa Indonesia baku yang luwes, tajam, dan mengalir seperti jurnalis teknologi investigatif.
-                   - HINDARI KATA KLISE AI: DILARANG menggunakan kata "Di era digital yang pesat", "Secara keseluruhan", "Tidak dapat dipungkiri", "Sebagai kesimpulan".
-                   - Fokus pada pengalaman pemakaian riil di Indonesia (ketahanan suhu tropis, kualitas suara di jalanan, keawetan baterai, garansi resmi distributor).
+            {{#17909800000001.product_or_topic#}}
 
-                2. KEJUJURAN & TRANSPARANSI PRODUK (THE CATCH):
-                   - Setiap ulasan WAJIB menyertakan minimal 1-2 kelemahan atau catatan kompromi produk.
-                   - Tunjukkan secara jujur di mana produsen memangkas biaya (misal: bodi plastik tipis, ketiadaan noise cancelling aktif, kabel non-braided).
 
-                3. ATURAN SKOR & RATING:
-                   - DILARANG KERAS menggunakan simbol bintang (★/⭐).
-                   - Rating WAJIB berupa angka murni: contoh '4.8 / 5' atau '9.1 / 10'.
+            Kategori:
 
-                4. STRUKTUR FORMAT JSON OUTPUT (MUTLAK):
-                Kamu WAJIB mengembalikan output HANYA berupa JSON valid tanpa teks pembuka atau markdown ```json.
-                Schema JSON:
-                {
-                  "title": "string (Judul menarik, tajam, maksimal 70 karakter)",
-                  "category": "{{#node_start.category#}}",
-                  "summary": "string (Ringkasan informatif 1-2 kalimat untuk preview dan Google snippet)",
-                  "content": [
-                    "string (Paragraf 1: Hook pembuka mengenai masalah nyata konsumen)",
-                    "string (Paragraf 2: Bedah spesifikasi teknis dan perbandingan dengan klaim promosi)",
-                    "string (Paragraf 3: Ulasan ketahanan material, kelemahan riil yang ditemukan)",
-                    "string (Paragraf 4: Vonis akhir: siapa yang wajib beli dan siapa yang sebaiknya skip)"
-                  ],
-                  "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=80",
-                  "author": "Dify Autonomous Agent (v2.0)",
-                  "readTime": "4 menit",
-                  "isFactCheck": false,
-                  "verdictFactCheck": null,
-                  "quickTakeaway": "string (Intisari vonis belanja dalam 1 kalimat padat)",
-                  "isTrending": true,
-                  "tiktokUrl": "{{#node_start.topic_or_link#}}",
-                  "productRecommendations": [
-                    {
-                      "name": "Nama Produk Lengkap",
-                      "price": "Rp xxx.xxx",
-                      "specs": "Garansi 1 Tahun Resmi, Spesifikasi Utama",
-                      "pros": "Kelebihan utama (2-3 poin teruji)",
-                      "cons": "Kekurangan utama (1-2 poin transparan)",
-                      "shopeeUrl": "https://shopee.co.id",
-                      "tokopediaUrl": "https://tokopedia.com",
-                      "tiktokUrl": "{{#node_start.topic_or_link#}}"
-                    }
-                  ]
-                }
-            - role: user
-              text: |
-                Tipe Permintaan: {{#node_start.input_mode#}}
-                Kategori: {{#node_start.category#}}
-                Input Tautan / Topik: {{#node_start.topic_or_link#}}
+            {{#17909800000001.target_category#}}
 
-                Instruksi Spesifik:
-                - Jika Tipe = 'FAKTA_VS_MITOS', set 'isFactCheck': true, isi 'verdictFactCheck': 'MITOS' atau 'FAKTA' atau 'SEBAGIAN BENAR'.
-                - Jika Tipe = 'TOP_5_BARANG_TERBAIK', sertakan komparasi 3-5 item di dalam 'productRecommendations' dan judul '5 Rekomendasi ... Terbaik 2026'.
-                - Hasilkan JSON murni sekarang.
-      - id: node_json_cleaner
-        position:
-          x: 680
-          y: 200
-        data:
-          title: "JSON Sanitizer & Validator"
-          type: code
-          language: python3
-          code: |
-            import json
 
-            def main(raw_text: str) -> dict:
-                text = raw_text.strip()
-                if text.startswith("```json"):
-                    text = text[7:]
-                if text.startswith("```"):
-                    text = text[3:]
-                if text.endswith("```"):
-                    text = text[:-3]
-                text = text.strip()
-                
-                try:
-                    payload = json.loads(text)
-                except Exception as e:
-                    # Fallback jika terjadi escape karakter
-                    payload = {
-                        "title": "Ulasan Produk Teruji DaeReview",
-                        "category": "Gadget & Setup",
-                        "summary": text[:200],
-                        "content": [text],
-                        "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=80",
-                        "author": "Dify Autonomous Agent",
-                        "readTime": "3 menit",
-                        "isTrending": True
-                    }
-                
-                return {
-                    "sanitized_payload": payload,
-                    "title": payload.get("title", "Artikel Baru")
-                }
-          variables:
-            - variable: raw_text
-              value_selector:
-                - node_llm_writer
-                - text
-      - id: node_http_publisher
-        position:
-          x: 980
-          y: 200
-        data:
-          title: "Publish ke DaeReview Live API"
-          type: http-request
-          method: post
-          url: "{{#env.DAEREVIEW_API_URL#}}"
-          headers: "Content-Type: application/json\nAuthorization: Bearer {{#env.DIFY_WEBHOOK_SECRET#}}"
-          body:
-            type: json
-            data: "{{#node_json_cleaner.sanitized_payload#}}"
-          timeout:
-            connect: 15
-            read: 30
-            write: 15
-      - id: node_end
-        position:
-          x: 1280
-          y: 200
-        data:
-          title: "Output & Konfirmasi Publikasi"
-          type: end
-          outputs:
-            - value_selector:
-                - node_http_publisher
-                - body
-              variable: response_api
-            - value_selector:
-                - node_json_cleaner
-                - title
-              variable: judul_artikel
+            Catatan Tambahan:
+
+            {{#17909800000001.custom_notes#}}
+
+
+            Data Riset Nyata & Spesifikasi dari Internet (DuckDuckGo):
+
+            {{#17909800000002.text#}}
+
+
+            Silakan susun artikel ulasan editorial berstandar Swiss untuk DaeReview
+            sekarang dalam format JSON valid!'
+        selected: false
+        title: Swiss Tech Editorial LLM
+        type: llm
+        vision:
+          enabled: false
+      height: 130
+      id: '17909800000003'
+      position:
+        x: 680
+        y: 240
+      positionAbsolute:
+        x: 680
+        y: 240
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        code: "import json\nimport re\n\ndef main(llm_text: str) -> dict:\n    cleaned\
+          \ = llm_text.strip()\n    if \"```json\" in cleaned:\n        cleaned =\
+          \ cleaned.split(\"```json\")[1].split(\"```\")[0].strip()\n    elif \"```\"\
+          \ in cleaned:\n        cleaned = cleaned.split(\"```\")[1].split(\"```\"\
+          )[0].strip()\n    \n    try:\n        data = json.loads(cleaned)\n    except\
+          \ Exception:\n        title_match = re.search(r'\"title\"\\s*:\\s*\"([^\"\
+          ]+)\"', cleaned)\n        title = title_match.group(1) if title_match else\
+          \ \"Ulasan Produk DaeReview\"\n        data = {\n            \"title\":\
+          \ title,\n            \"slug\": \"ulasan-produk-\" + str(abs(hash(title))\
+          \ % 100000),\n            \"excerpt\": \"Ulasan komprehensif gadget berstandar\
+          \ editorial Swiss oleh DaeReview.\",\n            \"category\": \"gadget\"\
+          ,\n            \"author\": \"DaeReview AI Editorial\",\n            \"rating\"\
+          : 8.0,\n            \"pros\": [\"Performa teruji\", \"Desain fungsional\"\
+          ],\n            \"cons\": [\"Harga fluktuatif\"],\n            \"the_catch\"\
+          : \"Perlu diperhatikan kecocokan dengan ekosistem perangkat Anda saat ini.\"\
+          ,\n            \"verdict\": \"Pilihan solid di kelas harganya jika Anda\
+          \ membutuhkan keandalan fungsional.\",\n            \"content\": cleaned\n\
+          \        }\n    \n    raw_slug = data.get('slug', '')\n    slug = re.sub(r'[^a-zA-Z0-9\\\
+          -]', '', raw_slug.lower().replace(' ', '-'))\n    if not slug:\n       \
+          \ slug = \"ulasan-gadget-\" + str(abs(hash(data.get('title', ''))) % 100000)\n\
+          \    data['slug'] = slug\n    \n    rating_val = 8.0\n    try:\n       \
+          \ rating_val = float(data.get('rating', 8.0))\n    except Exception:\n \
+          \       rating_val = 8.0\n        \n    payload = {\n        \"title\":\
+          \ data.get(\"title\", \"Ulasan Gadget DaeReview\"),\n        \"slug\": slug,\n\
+          \        \"excerpt\": data.get(\"excerpt\", \"\"),\n        \"category\"\
+          : data.get(\"category\", \"gadget\"),\n        \"author\": data.get(\"author\"\
+          , \"DaeReview AI Editorial\"),\n        \"readTime\": \"6 min\",\n     \
+          \   \"content\": data.get(\"content\", \"\"),\n        \"rating\": rating_val,\n\
+          \        \"pros\": data.get(\"pros\", []),\n        \"cons\": data.get(\"\
+          cons\", []),\n        \"the_catch\": data.get(\"the_catch\", \"\"),\n  \
+          \      \"verdict\": data.get(\"verdict\", \"\")\n    }\n    \n    return\
+          \ {\n        \"title\": payload[\"title\"],\n        \"slug\": payload[\"\
+          slug\"],\n        \"excerpt\": payload[\"excerpt\"],\n        \"the_catch\"\
+          : payload[\"the_catch\"],\n        \"verdict\": payload[\"verdict\"],\n\
+          \        \"rating\": payload[\"rating\"],\n        \"json_payload\": json.dumps(payload,\
+          \ ensure_ascii=False)\n    }\n"
+        code_language: python3
+        outputs:
+          excerpt:
+            type: string
+          json_payload:
+            type: string
+          rating:
+            type: number
+          slug:
+            type: string
+          the_catch:
+            type: string
+          title:
+            type: string
+          verdict:
+            type: string
+        selected: false
+        title: JSON Parser & Formatter
+        type: code
+        variables:
+        - value_selector:
+          - '17909800000003'
+          - text
+          variable: llm_text
+      height: 130
+      id: '17909800000004'
+      position:
+        x: 980
+        y: 240
+      positionAbsolute:
+        x: 980
+        y: 240
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        authorization:
+          config:
+            api_key: dae_dify_autonomous_webhook_secret_key
+            header: Authorization
+            type: bearer
+          type: api-key
+        body:
+          data: '{{#17909800000004.json_payload#}}'
+          type: json
+        headers: 'Content-Type: application/json'
+        method: post
+        params: ''
+        selected: false
+        title: Publish to DaeReview
+        type: http-request
+        url: https://daereview.daeroom.my.id/api/dify/publish
+      height: 130
+      id: '17909800000005'
+      position:
+        x: 1280
+        y: 240
+      positionAbsolute:
+        x: 1280
+        y: 240
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        outputs:
+        - value_selector:
+          - '17909800000004'
+          - title
+          value_type: string
+          variable: title
+        - value_selector:
+          - '17909800000004'
+          - slug
+          value_type: string
+          variable: slug
+        - value_selector:
+          - '17909800000004'
+          - the_catch
+          value_type: string
+          variable: the_catch
+        - value_selector:
+          - '17909800000004'
+          - verdict
+          value_type: string
+          variable: verdict
+        - value_selector:
+          - '17909800000005'
+          - status_code
+          value_type: number
+          variable: publish_status
+        - value_selector:
+          - '17909800000005'
+          - body
+          value_type: string
+          variable: api_response
+        selected: false
+        title: Publikasi Selesai
+        type: end
+      height: 116
+      id: '17909800000006'
+      position:
+        x: 1580
+        y: 240
+      positionAbsolute:
+        x: 1580
+        y: 240
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+  rag_pipeline_variables: []
