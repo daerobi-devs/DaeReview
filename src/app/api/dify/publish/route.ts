@@ -100,17 +100,29 @@ async function fetchOgImage(urlStr: string): Promise<string | null> {
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8810761979:AAFTbAVxgfarUaqN7JBPmVc9liWFKjPMR4o";
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "7045828398";
 
-async function notifyTelegram(article: NewsArticle, theCatch?: string, productLink?: string) {
+async function notifyTelegram(
+  article: NewsArticle,
+  theCatch?: string,
+  productLink?: string,
+  divisionName: string = "Tim 1: DaeReview Newsroom"
+) {
   try {
     if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
 
+    const isDraft = article.status === "draft";
+    const statusLabel = isDraft
+      ? "🟡 DRAFT (Menunggu Persetujuan CEO)"
+      : "🟢 SUDAH TAYANG LIVE";
+
     const lines = [
-      `📢 *[DRAF DITERBITKAN OLEH DIFY SQUAD]*`,
+      isDraft ? `🟡 *[DRAF SIAP DIREVIU - DAE REVIEW]*` : `📢 *[ARTIKEL RESMI TERBIT]*`,
       ``,
+      `🏢 *Divisi Penggarap:* ${divisionName}`,
       `📌 *Judul:*`,
       `${article.title}`,
       ``,
       `🏷️ *Kategori:* ${article.category} • ⏱️ ${article.readTime}`,
+      `📊 *Status:* ${statusLabel}`,
       theCatch ? `⚠️ *The Catch:* _${theCatch}_` : "",
       productLink ? `🔗 *Sumber Link:* ${productLink}` : "",
       ``,
@@ -119,20 +131,45 @@ async function notifyTelegram(article: NewsArticle, theCatch?: string, productLi
     ].filter(Boolean);
 
     const message = lines.join("\n");
-    const replyMarkup = {
-      inline_keyboard: [
-        [
-          {
-            text: "🌐 Baca di Portal",
-            url: `https://daereview.daeroom.my.id/berita/${article.slug}`,
-          },
-          {
-            text: "✏️ Kelola di Admin",
-            url: "https://daereview.daeroom.my.id/admin/berita",
-          },
-        ],
-      ],
-    };
+    const replyMarkup = isDraft
+      ? {
+          inline_keyboard: [
+            [
+              {
+                text: "✅ SETUJUI & TAYANGKAN",
+                callback_data: `approve_news:${article.slug}`,
+              },
+              {
+                text: "❌ Tolak / Buang",
+                callback_data: `reject_news:${article.slug}`,
+              },
+            ],
+            [
+              {
+                text: "👁️ Pratinjau Draf",
+                url: `https://daereview.daeroom.my.id/berita/${article.slug}`,
+              },
+              {
+                text: "✏️ Kelola di Admin",
+                url: "https://daereview.daeroom.my.id/admin/berita",
+              },
+            ],
+          ],
+        }
+      : {
+          inline_keyboard: [
+            [
+              {
+                text: "🌐 Baca di Portal",
+                url: `https://daereview.daeroom.my.id/berita/${article.slug}`,
+              },
+              {
+                text: "✏️ Kelola di Admin",
+                url: "https://daereview.daeroom.my.id/admin/berita",
+              },
+            ],
+          ],
+        };
 
     // 1. Coba kirimkan bersama foto jika ada URL gambar valid
     if (article.image && article.image.startsWith("http")) {
@@ -286,6 +323,12 @@ export async function POST(request: Request) {
       finalImage = CATEGORY_DEFAULT_IMAGES[catKey] || CATEGORY_DEFAULT_IMAGES.default;
     }
 
+    const divisionName =
+      body.division ||
+      (body.type === "product_review" || body.type === "product"
+        ? "Tim 2: DaeReview Product Lab"
+        : "Tim 1: DaeReview Newsroom");
+
     const newArticle: NewsArticle = {
       id: `dify-${Date.now()}`,
       title: title.trim(),
@@ -308,6 +351,7 @@ export async function POST(request: Request) {
       relatedProductId,
       tiktokUrl: tiktokUrl || undefined,
       isCustom: true,
+      status: body.status === "published" ? "published" : "draft",
     };
 
     // 4. Simpan ke Supabase Database (public.articles)
@@ -328,6 +372,7 @@ export async function POST(request: Request) {
           quick_takeaway: newArticle.quickTakeaway || null,
           related_product_id: newArticle.relatedProductId || null,
           tiktok_url: newArticle.tiktokUrl || null,
+          status: newArticle.status,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "slug" }
@@ -345,12 +390,21 @@ export async function POST(request: Request) {
     writeCustomNews(updated);
 
     // 6. Notifikasi Human-in-the-Loop ke Bot Telegram Pribadi Owner
-    await notifyTelegram(newArticle, body.the_catch || body.theCatch, body.product_link || body.productLink);
+    await notifyTelegram(
+      newArticle,
+      body.the_catch || body.theCatch,
+      body.product_link || body.productLink,
+      divisionName
+    );
 
     return NextResponse.json({
       success: true,
-      message: "Artikel dari Dify AI Agent berhasil diterbitkan secara live!",
+      message:
+        newArticle.status === "draft"
+          ? "Draf artikel berhasil disimpan! Notifikasi verifikasi telah dikirim ke Telegram CEO."
+          : "Artikel berhasil diterbitkan secara live!",
       url: `https://daereview.daeroom.my.id/berita/${newArticle.slug}`,
+      status: newArticle.status,
       article: newArticle,
     });
   } catch (error: any) {

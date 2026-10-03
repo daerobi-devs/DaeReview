@@ -1,0 +1,423 @@
+app:
+  description: Tim 0 DaeReview Assignment Desk & Project Manager. Bertindak sebagai
+    otak strategi redaksi, meriset topik trending harian via DuckDuckGo, menganalisis
+    link masuk dari CEO, dan memutuskan penugasan (dispatch) apakah topik digarap oleh
+    Tim 1 (Newsroom) atau Tim 2 (Product Lab).
+  icon: 👑
+  icon_background: '#0F172A'
+  icon_type: emoji
+  mode: workflow
+  name: DaeReview Assignment Desk (Tim 0 - Project Manager)
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/gemini:0.9.10@4979b8843fa46c3c2143d339f5868f04d9d77166616c00dd9f811a4adfce03ab
+    version: null
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/duckduckgo:0.0.13@ae397e4ae1d9d2dc66572d50a4b74b228f0b7a117734db574fe9773cca0c183b
+    version: null
+kind: app
+version: 0.7.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload: {}
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: tool
+      id: edge-start-to-ddg
+      source: '17909930000001'
+      sourceHandle: source
+      target: '17909930000002'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: tool
+        targetType: llm
+      id: edge-ddg-to-pm
+      source: '17909930000002'
+      sourceHandle: source
+      target: '17909930000003'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: llm
+      id: edge-pm-to-dispatcher
+      source: '17909930000003'
+      sourceHandle: source
+      target: '17909930000004'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: edge-dispatcher-to-code
+      source: '17909930000004'
+      sourceHandle: source
+      target: '17909930000005'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: end
+      id: edge-code-to-end
+      source: '17909930000005'
+      sourceHandle: source
+      target: '17909930000006'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: Masukan dari CEO berupa ide topik mentah, tautan link berita/Shopee, atau permintaan brainstorming tren
+        selected: false
+        title: Start Command CEO
+        type: start
+        variables:
+        - label: Pesan, Ide Topik, atau Tautan Link dari CEO
+          max_length: 500
+          options: []
+          required: true
+          type: text-input
+          variable: input_text
+        - label: Mode Operasi
+          max_length: 100
+          options:
+          - Auto Triage & Dispatch (Analisis & Putuskan Tim)
+          - Brainstorming Tren Hari Ini
+          - Analisis Tautan Produk Belanja
+          - Analisis Isu Berita Teknologi
+          required: true
+          type: select
+          variable: mode
+      height: 140
+      id: '17909930000001'
+      position:
+        x: 80
+        y: 280
+      positionAbsolute:
+        x: 80
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        is_team_authorization: false
+        param:
+          query: '{{#17909930000001.input_text#}} tren teknologi gadget indonesia terkini'
+        provider_id: langgenius/duckduckgo/duckduckgo
+        provider_name: duckduckgo
+        provider_type: marketplace
+        selected: false
+        title: DuckDuckGo Market & Trend Radar
+        tool_configurations: {}
+        tool_label: DuckDuckGo Search
+        tool_name: ddgo_search
+        tool_parameters:
+          max_results:
+            type: mixed
+            value: 6
+          query:
+            type: mixed
+            value: '{{#17909930000001.input_text#}} tren teknologi gadget indonesia terkini'
+        type: tool
+      height: 98
+      id: '17909930000002'
+      position:
+        x: 380
+        y: 280
+      positionAbsolute:
+        x: 380
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0.3
+          mode: chat
+          name: gemini-2.5-flash
+          provider: langgenius/gemini/gemini
+        prompt_template:
+        - id: pm-sys-1
+          role: system
+          text: |
+            Kamu adalah Chief Project Manager & Assignment Desk (Tim 0) di Ruang Redaksi Virtual DaeReview.
+            
+            Tugasmu adalah bertindak sebagai perpanjangan tangan CEO dalam memimpin redaksi:
+            1. Jika CEO meminta ide tren / brainstorming (atau mengetik "ide", "trend", "topik"):
+               - Analisis hasil radar web DuckDuckGo:
+                 {{#17909930000002.text#}}
+               - Rancang 5 usulan topik liputan paling panas di Indonesia saat ini.
+               - Kelompokkan secara cerdas: mana topik yang wajib digarap Tim 1 (Newsroom) dan mana yang wajib digarap Tim 2 (Product Lab).
+            2. Jika CEO mengirimkan link atau ide mentah:
+               - Cek apakah tautan berasal dari e-commerce (Shopee, Tokopedia, Blibli, Lazada) atau nama gadget spesifik.
+                 -> Jika YA, rekomendasikan: Tim 2 (DaeReview Product Lab) untuk uji hardware, The Catch, dan panduan belanja.
+               - Jika berupa portal berita (detik, kompas, theverge, gsmarena) atau isu/kebijakan teknologi.
+                 -> Jika YA, rekomendasikan: Tim 1 (DaeReview Newsroom) untuk artikel jurnalisme tajam tanpa format belanja.
+            3. Buat "Assignment Brief" terstruktur berisi Golden Angle liputan, potensi kontroversi, dan arahan redaksi.
+          type: text
+        - id: pm-user-1
+          role: user
+          text: 'Pesan / Input CEO: {{#17909930000001.input_text#}}\nMode: {{#17909930000001.mode#}}\n\nSilakan buat keputusan strategi redaksi dan penugasan tim.'
+          type: text
+        selected: false
+        title: Agent 1 - Strategy & Assignment Lead
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 110
+      id: '17909930000003'
+      position:
+        x: 680
+        y: 280
+      positionAbsolute:
+        x: 680
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0.2
+          mode: chat
+          name: gemini-2.5-flash
+          provider: langgenius/gemini/gemini
+        prompt_template:
+        - id: dispatcher-sys-1
+          role: system
+          text: |
+            Kamu adalah Assignment Dispatcher & Telegram Communicator Tim 0.
+            
+            Tugasmu:
+            1. Olah keputusan strategi redaksi dari Strategy Lead.
+            2. Susun pesan ringkasan eksekutif untuk CEO di Telegram (lengkap dengan emoji, alasan penugasan, dan rekomendasi tim).
+            3. Siapkan payload instruksi terstruktur untuk mengeksekusi Tim 1 atau Tim 2.
+            
+            OUTPUT WAJIB DALAM BLOK JSON:
+            ```json
+            {
+              "decision": "DISPATCH_TIM_1" | "DISPATCH_TIM_2" | "BRAINSTORM_TRENDS",
+              "target_division": "Tim 1: DaeReview Newsroom" | "Tim 2: DaeReview Product Lab" | "Assignment Desk",
+              "topic_title": "Judul Topik Liputan",
+              "recommended_angle": "Golden angle berita atau pengujian produk",
+              "reasoning": "Alasan mengapa topik ini cocok untuk divisi terpilih",
+              "telegram_message": "Ringkasan rapi bergaya asisten redaksi untuk dikirim ke CEO...",
+              "trending_topics": [
+                {
+                  "title": "Topik 1",
+                  "division": "Tim 1: Newsroom",
+                  "hook": "Kait berita menarik"
+                },
+                {
+                  "title": "Topik 2",
+                  "division": "Tim 2: Product Lab",
+                  "hook": "Audit spek dan The Catch"
+                }
+              ]
+            }
+            ```
+          type: text
+        - id: dispatcher-user-1
+          role: user
+          text: 'Hasil Strategi PM:\n{{#17909930000003.text#}}\n\nKemas ke dalam format JSON Dispatcher sekarang.'
+          type: text
+        selected: false
+        title: Agent 2 - Dispatch Formatter
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 110
+      id: '17909930000004'
+      position:
+        x: 980
+        y: 280
+      positionAbsolute:
+        x: 980
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        code: |
+          import json
+          import re
+
+          def main(llm_text: str, input_text: str = "") -> dict:
+              cleaned = llm_text.strip() if llm_text else ""
+              match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', cleaned)
+              if match:
+                  cleaned = match.group(1).strip()
+              
+              data = {}
+              try:
+                  data = json.loads(cleaned)
+              except Exception:
+                  data["decision"] = "DISPATCH_TIM_1" if "shopee" not in input_text.lower() and "tokopedia" not in input_text.lower() else "DISPATCH_TIM_2"
+                  data["target_division"] = "Tim 1: DaeReview Newsroom" if data["decision"] == "DISPATCH_TIM_1" else "Tim 2: DaeReview Product Lab"
+                  data["topic_title"] = input_text
+                  data["recommended_angle"] = "Liputan objektif berstandar Swiss Editorial."
+                  data["telegram_message"] = f"Topik: {input_text} disarankan untuk diproses oleh {data['target_division']}."
+
+              decision = data.get("decision", "DISPATCH_TIM_1")
+              target_div = data.get("target_division", "Tim 1: DaeReview Newsroom")
+              topic_title = data.get("topic_title") or input_text or "Topik Pilihan Redaksi"
+              angle = data.get("recommended_angle") or "Sudut pandang independen"
+              telegram_msg = data.get("telegram_message") or cleaned
+
+              return {
+                  "decision": decision,
+                  "target_division": target_div,
+                  "topic_title": topic_title,
+                  "recommended_angle": angle,
+                  "telegram_message": telegram_msg,
+                  "json_dispatch": json.dumps(data, ensure_ascii=False)
+              }
+        code_language: python3
+        outputs:
+          decision:
+            type: string
+          json_dispatch:
+            type: string
+          recommended_angle:
+            type: string
+          telegram_message:
+            type: string
+          target_division:
+            type: string
+          topic_title:
+            type: string
+        selected: false
+        title: Code Sanitizer & Decision Parser
+        type: code
+        variables:
+        - value_selector:
+          - '17909930000004'
+          - text
+          variable: llm_text
+        - value_selector:
+          - '17909930000001'
+          - input_text
+          variable: input_text
+      height: 120
+      id: '17909930000005'
+      position:
+        x: 1280
+        y: 280
+      positionAbsolute:
+        x: 1280
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        outputs:
+        - value_selector:
+          - '17909930000005'
+          - decision
+          value_type: string
+          variable: decision
+        - value_selector:
+          - '17909930000005'
+          - target_division
+          value_type: string
+          variable: target_division
+        - value_selector:
+          - '17909930000005'
+          - topic_title
+          value_type: string
+          variable: topic_title
+        - value_selector:
+          - '17909930000005'
+          - recommended_angle
+          value_type: string
+          variable: recommended_angle
+        - value_selector:
+          - '17909930000005'
+          - telegram_message
+          value_type: string
+          variable: telegram_message
+        - value_selector:
+          - '17909930000005'
+          - json_dispatch
+          value_type: string
+          variable: json_dispatch
+        selected: false
+        title: Keputusan Penugasan Redaksi Siap
+        type: end
+      height: 140
+      id: '17909930000006'
+      position:
+        x: 1580
+        y: 280
+      positionAbsolute:
+        x: 1580
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+  rag_pipeline_variables: []

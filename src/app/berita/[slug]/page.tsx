@@ -77,6 +77,7 @@ async function getArticleServer(slug: string): Promise<NewsArticle | undefined> 
         relatedProductId: data.related_product_id || undefined,
         tiktokUrl: data.tiktok_url || undefined,
         isCustom: true,
+        status: data.status || "published",
       };
     }
   } catch (dbErr) {
@@ -370,6 +371,17 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <Header />
+
+      {article.status === "draft" && (
+        <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-3 text-amber-900 flex items-center justify-between text-xs sm:text-sm font-medium">
+          <div className="flex items-center gap-2 max-w-4xl mx-auto w-full">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+            <span>
+              <strong>MODE PRATINJAU DRAF:</strong> Artikel ini berstatus DRAFT dan belum tayang di halaman publik. Anda dapat menyetujuinya lewat Bot Telegram atau Admin.
+            </span>
+          </div>
+        </div>
+      )}
 
       <main className="flex-1 py-10">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -62,10 +62,13 @@ function mapSupabaseRowToArticle(row: any): NewsArticle {
     relatedProductId: row.related_product_id || undefined,
     tiktokUrl: row.tiktok_url || undefined,
     isCustom: true,
+    status: row.status || "published",
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const includeDrafts = searchParams.get("include_drafts") === "true";
   const localCustom = readCustomNewsFromFile();
   let supabaseArticles: NewsArticle[] = [];
 
@@ -107,10 +110,14 @@ export async function GET() {
     }
   }
 
+  const finalArticles = includeDrafts
+    ? combined
+    : combined.filter((a) => a.status !== "draft");
+
   return NextResponse.json({
     success: true,
-    total: combined.length,
-    articles: combined,
+    total: finalArticles.length,
+    articles: finalArticles,
   });
 }
 
@@ -210,6 +217,7 @@ export async function PUT(request: Request) {
             quick_takeaway: body.quickTakeaway || null,
             related_product_id: body.relatedProductId || null,
             tiktok_url: body.tiktokUrl || null,
+            status: body.status || undefined,
             updated_at: new Date().toISOString(),
           })
           .eq("slug", body.slug);

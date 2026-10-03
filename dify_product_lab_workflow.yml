@@ -1,0 +1,558 @@
+app:
+  description: Tim 2 DaeReview Product Lab khusus ulasan mendalam gadget, audit hardware
+    4-lapis, investigasi kelemahan The Catch, dan panduan belanja objektif untuk portal
+    DaeReview. Dilengkapi DuckDuckGo Search dan integrasi Telegram approval CEO.
+  icon: 🔬
+  icon_background: '#0F172A'
+  icon_type: emoji
+  mode: workflow
+  name: DaeReview Product Lab (Tim 2 - Gadget Review & Panduan)
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/gemini:0.9.10@4979b8843fa46c3c2143d339f5868f04d9d77166616c00dd9f811a4adfce03ab
+    version: null
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/duckduckgo:0.0.13@ae397e4ae1d9d2dc66572d50a4b74b228f0b7a117734db574fe9773cca0c183b
+    version: null
+kind: app
+version: 0.7.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload: {}
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: tool
+      id: edge-start-to-ddg
+      source: '17909920000001'
+      sourceHandle: source
+      target: '17909920000002'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: tool
+        targetType: llm
+      id: edge-ddg-to-auditor
+      source: '17909920000002'
+      sourceHandle: source
+      target: '17909920000003'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: llm
+      id: edge-auditor-to-profiler
+      source: '17909920000003'
+      sourceHandle: source
+      target: '17909920000004'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: llm
+      id: edge-profiler-to-lead
+      source: '17909920000004'
+      sourceHandle: source
+      target: '17909920000005'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: edge-lead-to-code
+      source: '17909920000005'
+      sourceHandle: source
+      target: '17909920000006'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+      id: edge-code-to-http
+      source: '17909920000006'
+      sourceHandle: source
+      target: '17909920000007'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: end
+      id: edge-http-to-end
+      source: '17909920000007'
+      sourceHandle: source
+      target: '17909920000008'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: Masukan nama perangkat gadget, link Shopee/Tokopedia, dan rentang harga dari CEO
+        selected: false
+        title: Start Lab Assignment
+        type: start
+        variables:
+        - label: Nama Perangkat / Gadget
+          max_length: 255
+          options: []
+          required: true
+          type: text-input
+          variable: product_name
+        - label: Tautan Toko / Marketplace (Shopee/Tokopedia)
+          max_length: 500
+          options: []
+          required: false
+          type: text-input
+          variable: marketplace_url
+        - label: Kategori Perangkat
+          max_length: 100
+          options:
+          - Gadget
+          - Smart Home
+          - Audio & Setup
+          - Tips Hemat
+          required: false
+          type: select
+          variable: category
+        - label: Perkiraan Harga di Indonesia (Opsional)
+          max_length: 100
+          options: []
+          required: false
+          type: text-input
+          variable: price_range
+      height: 140
+      id: '17909920000001'
+      position:
+        x: 80
+        y: 280
+      positionAbsolute:
+        x: 80
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        is_team_authorization: false
+        param:
+          query: '{{#17909920000001.product_name#}} review kelemahan keluhan pengguna spesifikasi asli'
+        provider_id: langgenius/duckduckgo/duckduckgo
+        provider_name: duckduckgo
+        provider_type: marketplace
+        selected: false
+        title: Live DuckDuckGo Lab Research
+        tool_configurations: {}
+        tool_label: DuckDuckGo Search
+        tool_name: ddgo_search
+        tool_parameters:
+          max_results:
+            type: mixed
+            value: 6
+          query:
+            type: mixed
+            value: '{{#17909920000001.product_name#}} review kelemahan keluhan pengguna spesifikasi asli'
+        type: tool
+      height: 98
+      id: '17909920000002'
+      position:
+        x: 380
+        y: 280
+      positionAbsolute:
+        x: 380
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0.3
+          mode: chat
+          name: gemini-2.5-flash
+          provider: langgenius/gemini/gemini
+        prompt_template:
+        - id: auditor-sys-1
+          role: system
+          text: |
+            Kamu adalah Auditor Hardware & Spesifikasi (Hardware & Spec Auditor) di Tim 2: DaeReview Product Lab.
+            
+            Tugasmu:
+            1. Teliti hasil riset web DuckDuckGo berikut:
+               {{#17909920000002.text#}}
+            2. Bongkar klaim pemasaran produsen vs realita pengujian teknis:
+               - Chipset & Throttling: Apakah performa stabil atau panas turun drastis saat beban berat?
+               - Kamera: Apakah resolusi tinggi didukung sensor berkualitas dan OIS, atau sekadar kamera makro gimmick?
+               - Baterai & Daya: Daya tahan realita screen-on time (SOT) vs klaim mAh di brosur.
+               - Kualitas Material: Finishing bodi, engsel, atau ketahanan debu/air asli.
+            3. Buat catatan perbandingan terstruktur "Klaim Pemasaran vs Realita Lapangan".
+          type: text
+        - id: auditor-user-1
+          role: user
+          text: 'Perangkat: {{#17909920000001.product_name#}}\nLink Marketplace: {{#17909920000001.marketplace_url#}}\nKategori: {{#17909920000001.category#}}\nRentang Harga: {{#17909920000001.price_range#}}\n\nSilakan audit spesifikasi hardware dan pisahkan mitos marketingnya.'
+          type: text
+        selected: false
+        title: Agent 1 - Hardware & Spec Auditor
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 110
+      id: '17909920000003'
+      position:
+        x: 680
+        y: 280
+      positionAbsolute:
+        x: 680
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0.3
+          mode: chat
+          name: gemini-2.5-flash
+          provider: langgenius/gemini/gemini
+        prompt_template:
+        - id: profiler-sys-1
+          role: system
+          text: |
+            Kamu adalah Investigator "The Catch" & Analis Rasio Nilai (The Catch & Value Profiler) Tim 2: DaeReview Product Lab.
+            
+            Tugasmu:
+            1. Identifikasi 1 kelemahan paling krusial / kompromi fatal yang dirahasiakan oleh brosur iklan ("The Catch").
+            2. Rumuskan segmentasi pembeli yang jujur dan berimbang:
+               - Siapa yang Wajib Membeli: Profil kebutuhan pengguna yang akan sangat diuntungkan (sweet spot use-case).
+               - Siapa yang Harus Lewatkan/Skip: Siapa yang akan kecewa berat dan produk alternatif apa di harga serupa yang lebih masuk akal.
+            3. Berikan skor rasio nilai-ke-harga (Value-for-Money Score) dari 1.0 hingga 10.0 (DILARANG menggunakan simbol bintang ★/⭐, wajib murni numerik).
+          type: text
+        - id: profiler-user-1
+          role: user
+          text: 'Hasil Audit Auditor Hardware:\n{{#17909920000003.text#}}\n\nPerangkat: {{#17909920000001.product_name#}}\n\nRumuskan The Catch, segmentasi Beli vs Skip, dan skor rasio harga.'
+          type: text
+        selected: false
+        title: Agent 2 - The Catch & Value Profiler
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 110
+      id: '17909920000004'
+      position:
+        x: 980
+        y: 280
+      positionAbsolute:
+        x: 980
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0.2
+          mode: chat
+          name: gemini-2.5-flash
+          provider: langgenius/gemini/gemini
+        prompt_template:
+        - id: lead-sys-1
+          role: system
+          text: |
+            Kamu adalah Lead Hardware Reviewer & Guide Drafter Tim 2: DaeReview Product Lab.
+            
+            Tugasmu menyusun ulasan mendalam komprehensif berstandar Swiss Editorial untuk tab /panduan dan /produk di portal DaeReview.
+            
+            STRUKTUR ULASAN LAB:
+            1. Judul Ulasan: Format "Review [Nama Perangkat]: [Vonis Tegas 1 Kalimat]"
+            2. First Impression & Desain Fisik (kenyamanan genggam & port)
+            3. Tabel Audit: Klaim Brosur vs Realita Lapangan
+            4. The Catch (Kelemahan Tersembunyi yang Wajib Diketahui)
+            5. Performa Harian & Daya Tahan Baterai Nyata
+            6. Panduan Belanja: Siapa yang Wajib Beli vs Siapa yang Harus Skip
+            7. Vonis Lab DaeReview (Skor numerik, misal 8.4/10)
+            
+            ATURAN FORMATTING:
+            - Heading wajib diawali ## dan dipisahkan 2 baris baru (\n\n).
+            - DILARANG menggunakan kata klise "Di zaman yang serba canggih ini".
+            - DILARANG simbol bintang ★.
+            
+            OUTPUT WAJIB DALAM BLOK JSON:
+            ```json
+            {
+              "title": "Review [Nama Perangkat]: [Vonis]",
+              "slug": "review-nama-perangkat",
+              "category": "Gadget",
+              "summary": "Ringkasan tajam ulasan produk untuk cuplikan Telegram & meta description.",
+              "readTime": "6 menit",
+              "content": "Paragraf pembuka...\n\n## Klaim Brosur vs Realita Lapangan\n\n| Aspek | Klaim Iklan | Hasil Uji Lab |\n|---|---|---|\n| Layar | 120Hz Mulus | 120Hz stabil, tapi kecerahan outdoor drop di panas terik |\n\n## The Catch: Kelemahan Tersembunyi\n\nUraian kelemahan...\n\n## Siapa yang Wajib Beli vs Siapa yang Harus Skip\n\n- **Beli jika:** ...\n- **Skip jika:** ...\n\n## Vonis Lab DaeReview\n\nKesimpulan akhir...",
+              "the_catch": "Kelemahan tersembunyi produk...",
+              "rating": 8.5,
+              "author": "Tim Riset Hardware DaeReview",
+              "division": "Tim 2: DaeReview Product Lab",
+              "status": "draft",
+              "product_link": "{{#17909920000001.marketplace_url#}}"
+            }
+            ```
+          type: text
+        - id: lead-user-1
+          role: user
+          text: 'Audit Hardware: {{#17909920000003.text#}}\n\nThe Catch & Profiling: {{#17909920000004.text#}}\n\nSusun ulasan panduan belanja lab lengkap dalam format JSON sekarang.'
+          type: text
+        selected: false
+        title: Agent 3 - Lead Reviewer & Guide Drafter
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 110
+      id: '17909920000005'
+      position:
+        x: 1280
+        y: 280
+      positionAbsolute:
+        x: 1280
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        code: |
+          import json
+          import re
+
+          def main(llm_text: str, marketplace_url: str = "") -> dict:
+              cleaned = llm_text.strip() if llm_text else ""
+              match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', cleaned)
+              if match:
+                  cleaned = match.group(1).strip()
+              
+              data = {}
+              try:
+                  data = json.loads(cleaned)
+              except Exception:
+                  title_match = re.search(r'"title"\s*:\s*"([^"]+)"', cleaned)
+                  data["title"] = title_match.group(1) if title_match else "Ulasan Hardware DaeReview Lab"
+                  data["summary"] = "Audit perangkat independen oleh Tim 2 Product Lab DaeReview."
+                  data["category"] = "Gadget"
+                  data["content"] = cleaned
+
+              title = data.get("title", "Review Gadget DaeReview Lab").strip()
+              raw_slug = data.get("slug") or ""
+              slug = re.sub(r'[^a-zA-Z0-9-]', '', raw_slug.lower().replace(' ', '-'))
+              if not slug:
+                  slug = "review-lab-" + str(abs(hash(title)) % 100000)
+
+              summary_text = data.get("summary") or "Audit teknis dan komparasi oleh DaeReview Product Lab."
+              the_catch = data.get("the_catch") or "Perhatikan kecocokan kompromi perangkat terhadap kebutuhan Anda."
+              eff_link = data.get("product_link") or marketplace_url or ""
+
+              rating_val = 8.0
+              try:
+                  rating_val = float(data.get("rating", 8.0))
+              except Exception:
+                  rating_val = 8.0
+
+              payload = {
+                  "title": title,
+                  "slug": slug,
+                  "summary": summary_text,
+                  "category": data.get("category", "Gadget"),
+                  "author": data.get("author", "Tim Riset Hardware DaeReview"),
+                  "division": "Tim 2: DaeReview Product Lab",
+                  "readTime": data.get("readTime", "6 menit"),
+                  "content": data.get("content", cleaned),
+                  "the_catch": the_catch,
+                  "rating": rating_val,
+                  "product_link": eff_link,
+                  "type": "product_review",
+                  "status": "draft"
+              }
+
+              return {
+                  "title": payload["title"],
+                  "slug": payload["slug"],
+                  "the_catch": payload["the_catch"],
+                  "rating": payload["rating"],
+                  "json_payload": json.dumps(payload, ensure_ascii=False)
+              }
+        code_language: python3
+        outputs:
+          json_payload:
+            type: string
+          rating:
+            type: number
+          slug:
+            type: string
+          the_catch:
+            type: string
+          title:
+            type: string
+        selected: false
+        title: Code Sanitizer & Lab Validator
+        type: code
+        variables:
+        - value_selector:
+          - '17909920000005'
+          - text
+          variable: llm_text
+        - value_selector:
+          - '17909920000001'
+          - marketplace_url
+          variable: marketplace_url
+      height: 120
+      id: '17909920000006'
+      position:
+        x: 1580
+        y: 280
+      positionAbsolute:
+        x: 1580
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        authorization:
+          config:
+            api_key: dae_dify_autonomous_webhook_secret_key
+            header: Authorization
+            type: bearer
+          type: api-key
+        body:
+          data: '{{#17909920000006.json_payload#}}'
+          type: json
+        headers: 'Content-Type: application/json
+
+          User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) DaeReview-ProductLab/1.0'
+        method: post
+        params: ''
+        selected: false
+        title: Kirim Draf Lab ke DaeReview Webhook
+        type: http-request
+        url: https://daereview.daeroom.my.id/api/dify/publish
+      height: 120
+      id: '17909920000007'
+      position:
+        x: 1880
+        y: 280
+      positionAbsolute:
+        x: 1880
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        outputs:
+        - value_selector:
+          - '17909920000006'
+          - title
+          value_type: string
+          variable: title
+        - value_selector:
+          - '17909920000006'
+          - slug
+          value_type: string
+          variable: slug
+        - value_selector:
+          - '17909920000006'
+          - the_catch
+          value_type: string
+          variable: the_catch
+        - value_selector:
+          - '17909920000007'
+          - status_code
+          value_type: number
+          variable: publish_status
+        - value_selector:
+          - '17909920000007'
+          - body
+          value_type: string
+          variable: api_response
+        selected: false
+        title: Selesai - Draf Lab Siap Direviu CEO
+        type: end
+      height: 110
+      id: '17909920000008'
+      position:
+        x: 2180
+        y: 280
+      positionAbsolute:
+        x: 2180
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+  rag_pipeline_variables: []

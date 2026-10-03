@@ -40,6 +40,7 @@ export interface NewsArticle {
   quickTakeaway?: string;
   isCustom?: boolean;
   tiktokUrl?: string;
+  status?: "draft" | "published";
 }
 
 export const CATEGORIES = [

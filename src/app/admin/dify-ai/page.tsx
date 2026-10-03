@@ -43,6 +43,8 @@ export default function AdminDifyAIPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [copiedPrompt, setCopiedPrompt] = useState(false);
   const [copiedJson, setCopiedJson] = useState(false);
+  const [telegramStatus, setTelegramStatus] = useState<any>(null);
+  const [telegramLoading, setTelegramLoading] = useState(false);
   const difySystemPrompt = `Kamu adalah DaeReview AI Agent, jurnalis teknologi independen dan kurator belanja terpercaya untuk platform DaeReview (daereview.daeroom.my.id).
 
 TUGAS & STANDAR REDAKSI UTAMA:
@@ -90,7 +92,27 @@ TUGAS & STANDAR REDAKSI UTAMA:
     setDrafts(getDifyDrafts());
     const savedKey = localStorage.getItem("daereview_dify_api_key");
     if (savedKey) setApiKey(savedKey);
+
+    fetch("/api/telegram/setup")
+      .then((res) => res.json())
+      .then((data) => setTelegramStatus(data))
+      .catch(() => {});
   }, []);
+
+  const handleConnectTelegram = async () => {
+    setTelegramLoading(true);
+    try {
+      const res = await fetch("/api/telegram/setup", { method: "POST" });
+      const data = await res.json();
+      setTelegramStatus((prev: any) => ({ ...prev, currentWebhook: data.result }));
+      setToastMessage("Webhook Telegram berhasil dihubungkan ke @daereview_editorial_bot!");
+      setTimeout(() => setToastMessage(null), 3500);
+    } catch (e: any) {
+      alert("Gagal menghubungkan webhook: " + e.message);
+    } finally {
+      setTelegramLoading(false);
+    }
+  };
 
   const handleSaveApiKey = (e: React.FormEvent) => {
     e.preventDefault();
@@ -245,94 +267,153 @@ TUGAS & STANDAR REDAKSI UTAMA:
         </div>
       </div>
 
-      {/* AUTONOMOUS MULTI-AGENT EDITORIAL SQUAD (TIM REDAKSI OTONOM) */}
-      <div className="bg-linear-to-br from-slate-900 via-blue-950 to-slate-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-800 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-bold text-cyan-400 uppercase tracking-wider mb-1">
-              <Users className="w-4 h-4" />
-              <span>DAEREVIEW VIRTUAL EDITORIAL SQUAD</span>
+      {/* 3-DIVISION VIRTUAL NEWSROOM ARCHITECTURE */}
+      <div className="space-y-6">
+        {/* TIM 0: PROJECT MANAGER & ASSIGNMENT DESK (TELEGRAM BOT HITL) */}
+        <div className="bg-linear-to-br from-slate-900 via-blue-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-blue-900/60 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-bold text-amber-400 uppercase tracking-wider mb-1">
+                <Users className="w-4 h-4" />
+                <span>TIM 0: PROJECT MANAGER & ASSIGNMENT DESK</span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                Pusat Komando Telegram Dua-Arah (HITL Approval)
+              </h2>
+              <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                Asisten pribadi CEO di Telegram (<span className="text-cyan-300 font-mono">@daereview_editorial_bot</span>). Menganalisis link masuk (Shopee/Tokopedia vs Berita), meriset 5 topik tren harian, menugaskan Tim 1 atau Tim 2, dan mengirimkan draf untuk disetujui 1-klik sebelum terbit live!
+              </p>
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-              Tim Redaksi Multi-Agent Terpadu di Dify
-            </h2>
-            <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
-              Arsitektur pipeline otonom yang bekerja seperti satu tim redaksi utuh: dari riset tren & pain point konsumen, audit spesifikasi lab, penulisan mendalam, hingga quality gate & auto-publish ke portal.
-            </p>
+
+            <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+              <a
+                href="/dify_project_manager_workflow.yml"
+                download="dify_project_manager_workflow.yml"
+                className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-extrabold transition-all flex items-center gap-2 shadow-lg cursor-pointer"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download DSL Tim 0 (PM)</span>
+              </a>
+              <button
+                onClick={handleConnectTelegram}
+                disabled={telegramLoading}
+                className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-blue-950 text-xs font-extrabold transition-all flex items-center gap-2 shadow-lg cursor-pointer"
+              >
+                <Zap className={`w-4 h-4 ${telegramLoading ? "animate-spin" : ""}`} />
+                <span>{telegramLoading ? "Menghubungkan..." : "Hubungkan Webhook Telegram"}</span>
+              </button>
+              <a
+                href="https://t.me/daereview_editorial_bot"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all flex items-center gap-2 border border-white/20 shadow-xs cursor-pointer"
+              >
+                <span>Buka Chat Bot</span>
+                <ExternalLink className="w-3.5 h-3.5 text-cyan-300" />
+              </a>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-wrap shrink-0">
-            <a
-              href="/dify_editorial_squad_workflow.yml"
-              download="dify_editorial_squad_workflow.yml"
-              className="px-4 py-2.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-blue-950 text-xs font-extrabold transition-all flex items-center gap-2 shadow-lg cursor-pointer"
-            >
-              <Download className="w-4 h-4" />
-              <span>Download File Dify DSL (.yml)</span>
-            </a>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1">
+              <span className="text-[10px] font-bold text-amber-400 uppercase">BOT TELEGRAM RESMI</span>
+              <p className="font-mono text-white text-sm">@daereview_editorial_bot</p>
+              <p className="text-slate-400 text-[11px]">Chat ID Terdaftar: 7045828398</p>
+            </div>
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1">
+              <span className="text-[10px] font-bold text-cyan-400 uppercase">ENDPOINT WEBHOOK</span>
+              <p className="font-mono text-slate-200 text-[11px] truncate">https://daereview.daeroom.my.id/api/telegram/webhook</p>
+              <p className="text-emerald-400 text-[11px] flex items-center gap-1 font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                {telegramStatus?.currentWebhook?.url ? "Webhook Aktif di Telegram" : "Siap Dihubungkan"}
+              </p>
+            </div>
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1">
+              <span className="text-[10px] font-bold text-purple-400 uppercase">KONTROL PERSETUJUAN (HITL)</span>
+              <p className="font-semibold text-white">Draft-First Guard Aktif</p>
+              <p className="text-slate-400 text-[11px]">Artikel wajib disetujui lewat tombol Telegram sebelum tayang ke publik.</p>
+            </div>
           </div>
         </div>
 
-        {/* 4 Agent Roles Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Agent 1 */}
-          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2 hover:border-cyan-400/40 transition-colors">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-cyan-300">AGENT 1</span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-900/60 text-blue-200">Riset Topik</span>
+        {/* DUA DIVISI PRODUKSI DIFY: TIM 1 VS TIM 2 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* TIM 1: NEWSROOM */}
+          <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-7 shadow-lg border border-slate-800 space-y-5 flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <span>📰</span>
+                  <span>DIVISI 1: BERITA & TREN</span>
+                </span>
+                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800">
+                  Jurnalisme Murni
+                </span>
+              </div>
+              <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                DaeReview Newsroom (Tim 1)
+              </h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Khusus menulis <strong>Berita Teknologi, Tren Viral, Kebijakan, dan Investigasi</strong>. Narasi mengalir tajam dan padat (5W+1H). 
+                <br /><br />
+                <span className="text-emerald-400 font-semibold">✓ Standar Swiss:</span> Bebas dari format panduan belanja, tanpa &quot;Siapa yang Wajib Membeli/Skip&quot;, dan tanpa tabel spek klaim.
+              </p>
+
+              <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1.5 text-[11px]">
+                <div className="text-slate-400 font-semibold uppercase text-[10px]">Alur Kerja 7-Node Tim 1:</div>
+                <div className="text-slate-300">Start ➔ DuckDuckGo Search ➔ Fact & Timeline Scout ➔ Tech Investigative Reporter ➔ Swiss Managing Editor ➔ Code Sanitizer ➔ Webhook Draf</div>
+              </div>
             </div>
-            <h3 className="text-sm font-bold text-white">Trend & Topic Scout</h3>
-            <p className="text-[11px] text-slate-300 leading-relaxed">
-              Membedah isu viral, mencari <em>Golden Angle</em> berita, dan menemukan rasa penasaran terbesar calon pembeli di media sosial & Google.
-            </p>
+
+            <div className="pt-4 border-t border-slate-800">
+              <a
+                href="/dify_newsroom_workflow.yml"
+                download="dify_newsroom_workflow.yml"
+                className="w-full py-2.5 px-4 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 text-xs font-extrabold transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download DSL Tim 1 (Newsroom)</span>
+              </a>
+            </div>
           </div>
 
-          {/* Agent 2 */}
-          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2 hover:border-cyan-400/40 transition-colors">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-emerald-400">AGENT 2</span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-300">Lab & Pasar</span>
-            </div>
-            <h3 className="text-sm font-bold text-white">Product & Lab Analyst</h3>
-            <p className="text-[11px] text-slate-300 leading-relaxed">
-              Membedah spesifikasi teknis, menyaring keluhan riil pembeli di Shopee/Tokopedia, dan menghitung skor <em>Value-for-Money</em> murni angka.
-            </p>
-          </div>
+          {/* TIM 2: PRODUCT LAB */}
+          <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-7 shadow-lg border border-slate-800 space-y-5 flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <span>🔬</span>
+                  <span>DIVISI 2: GADGET REVIEW & LAB</span>
+                </span>
+                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800">
+                  Uji Hardware 4-Lapis
+                </span>
+              </div>
+              <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                DaeReview Product Lab (Tim 2)
+              </h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Khusus <strong>Ulasan Gadget Mendalam & Panduan Belanja</strong> untuk tab <code className="text-cyan-300">/panduan</code> dan <code className="text-cyan-300">/produk</code>.
+                <br /><br />
+                <span className="text-emerald-400 font-semibold">✓ Standar Lab:</span> Dilengkapi audit klaim brosur vs realita, investigasi <em>The Catch</em> (kelemahan fatal rahasia), rasio harga, serta segmentasi siapa yang cocok beli vs siapa yang harus skip.
+              </p>
 
-          {/* Agent 3 */}
-          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2 hover:border-cyan-400/40 transition-colors">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-amber-400">AGENT 3</span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-950/60 text-amber-300">Copywriter</span>
+              <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1.5 text-[11px]">
+                <div className="text-slate-400 font-semibold uppercase text-[10px]">Alur Kerja 7-Node Tim 2:</div>
+                <div className="text-slate-300">Start ➔ DuckDuckGo Search ➔ Hardware Auditor ➔ The Catch Profiler ➔ Lead Reviewer & Guide Drafter ➔ Code Sanitizer ➔ Webhook Draf</div>
+              </div>
             </div>
-            <h3 className="text-sm font-bold text-white">Lead Editorial Writer</h3>
-            <p className="text-[11px] text-slate-300 leading-relaxed">
-              Menulis naskah lengkap bergaya Daerobi: tanpa basa-basi klise robot, menggunakan H2/H3, kotak tips <code>&gt; 💡</code>, dan tabel komparasi.
-            </p>
-          </div>
 
-          {/* Agent 4 */}
-          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2 hover:border-cyan-400/40 transition-colors">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-purple-400">AGENT 4</span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-950/60 text-purple-300">Manajemen</span>
+            <div className="pt-4 border-t border-slate-800">
+              <a
+                href="/dify_product_lab_workflow.yml"
+                download="dify_product_lab_workflow.yml"
+                className="w-full py-2.5 px-4 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-xs font-extrabold transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download DSL Tim 2 (Product Lab)</span>
+              </a>
             </div>
-            <h3 className="text-sm font-bold text-white">Chief Editor & Manager</h3>
-            <p className="text-[11px] text-slate-300 leading-relaxed">
-              Quality Assurance (QC) terakhir, merapikan judul dengan CTR tinggi, meta description SEO, dan mengemas JSON valid ke portal.
-            </p>
-          </div>
-        </div>
-
-        {/* Quick Instructions */}
-        <div className="p-4 rounded-2xl bg-blue-950/40 border border-blue-900/60 text-xs text-slate-300 flex items-start gap-3">
-          <Zap className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <p className="font-semibold text-white">Cara Pasang 1-Klik di Dify Studio:</p>
-            <p className="text-slate-300">
-              1. Klik tombol <strong>Download File Dify DSL (.yml)</strong> di atas. <br />
-              2. Buka Dify Anda di <a href="https://dify.daeroom.my.id" target="_blank" className="text-cyan-300 underline font-mono">https://dify.daeroom.my.id</a> ➔ Klik <strong>Create from DSL</strong> ➔ Pilih file yang baru Anda download. Seluruh tim agent langsung terbentuk otomatis!
-            </p>
           </div>
         </div>
       </div>

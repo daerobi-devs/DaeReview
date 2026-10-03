@@ -1,0 +1,533 @@
+app:
+  description: Tim 1 DaeReview Newsroom khusus jurnalisme teknologi, investigasi tren,
+    dan berita mendalam tanpa format panduan belanja. Dilengkapi DuckDuckGo Search,
+    Swiss Editorial Gatekeeper, dan integrasi webhook draft persetujuan CEO.
+  icon: 📰
+  icon_background: '#0F172A'
+  icon_type: emoji
+  mode: workflow
+  name: DaeReview Newsroom (Tim 1 - Berita & Tren)
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/gemini:0.9.10@4979b8843fa46c3c2143d339f5868f04d9d77166616c00dd9f811a4adfce03ab
+    version: null
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/duckduckgo:0.0.13@ae397e4ae1d9d2dc66572d50a4b74b228f0b7a117734db574fe9773cca0c183b
+    version: null
+kind: app
+version: 0.7.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload: {}
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: tool
+      id: edge-start-to-ddg
+      source: '17909910000001'
+      sourceHandle: source
+      target: '17909910000002'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: tool
+        targetType: llm
+      id: edge-ddg-to-scout
+      source: '17909910000002'
+      sourceHandle: source
+      target: '17909910000003'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: llm
+      id: edge-scout-to-reporter
+      source: '17909910000003'
+      sourceHandle: source
+      target: '17909910000004'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: llm
+      id: edge-reporter-to-editor
+      source: '17909910000004'
+      sourceHandle: source
+      target: '17909910000005'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: edge-editor-to-code
+      source: '17909910000005'
+      sourceHandle: source
+      target: '17909910000006'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+      id: edge-code-to-http
+      source: '17909910000006'
+      sourceHandle: source
+      target: '17909910000007'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: end
+      id: edge-http-to-end
+      source: '17909910000007'
+      sourceHandle: source
+      target: '17909910000008'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: Masukan topik berita atau tautan isu terkini dari CEO atau Assignment Desk
+        selected: false
+        title: Start Assignment
+        type: start
+        variables:
+        - label: Topik atau Judul Isu Berita
+          max_length: 255
+          options: []
+          required: true
+          type: text-input
+          variable: topic
+        - label: Tautan Sumber (Opsional)
+          max_length: 500
+          options: []
+          required: false
+          type: text-input
+          variable: source_url
+        - label: Sudut Pandang / Angle Khusus (Opsional)
+          max_length: 500
+          options: []
+          required: false
+          type: text-input
+          variable: news_angle
+      height: 140
+      id: '17909910000001'
+      position:
+        x: 80
+        y: 280
+      positionAbsolute:
+        x: 80
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        is_team_authorization: false
+        param:
+          query: '{{#17909910000001.topic#}}'
+        provider_id: langgenius/duckduckgo/duckduckgo
+        provider_name: duckduckgo
+        provider_type: marketplace
+        selected: false
+        title: Live DuckDuckGo News Search
+        tool_configurations: {}
+        tool_label: DuckDuckGo Search
+        tool_name: ddgo_search
+        tool_parameters:
+          max_results:
+            type: mixed
+            value: 6
+          query:
+            type: mixed
+            value: '{{#17909910000001.topic#}}'
+        type: tool
+      height: 98
+      id: '17909910000002'
+      position:
+        x: 380
+        y: 280
+      positionAbsolute:
+        x: 380
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0.3
+          mode: chat
+          name: gemini-2.5-flash
+          provider: langgenius/gemini/gemini
+        prompt_template:
+        - id: scout-sys-1
+          role: system
+          text: |
+            Kamu adalah Agen Riset & Fakta (Fact & Timeline Scout) di Tim 1: DaeReview Newsroom.
+            
+            Tugasmu:
+            1. Teliti hasil pencarian web DuckDuckGo berikut:
+               {{#17909910000002.text#}}
+            2. Ekstraksi fakta inti (5W+1H):
+               - Apa kejadian persisnya?
+               - Kapan dan di mana diumumkan?
+               - Siapa pihak, perusahaan, pejabat, atau figur yang terlibat?
+               - Apa kutipan atau poin pernyataan resmi terpenting?
+               - Apa implikasi konkret terhadap pengguna atau pasar di Indonesia?
+            
+            ATURAN TEGAS:
+            - JANGAN membuat panduan belanja, komparasi harga Shopee, atau tabel review produk.
+            - Hasilkan ringkasan fakta terverifikasi dan kutipan yang akurat.
+          type: text
+        - id: scout-user-1
+          role: user
+          text: 'Topik: {{#17909910000001.topic#}}\nSumber: {{#17909910000001.source_url#}}\nAngle: {{#17909910000001.news_angle#}}\n\nSilakan ekstrak fakta jurnalistik terkini.'
+          type: text
+        selected: false
+        title: Agent 1 - Fact & Timeline Scout
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 110
+      id: '17909910000003'
+      position:
+        x: 680
+        y: 280
+      positionAbsolute:
+        x: 680
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0.5
+          mode: chat
+          name: gemini-2.5-flash
+          provider: langgenius/gemini/gemini
+        prompt_template:
+        - id: reporter-sys-1
+          role: system
+          text: |
+            Kamu adalah Jurnalis & Reporter Teknologi Investigatif (Investigative Tech Reporter) Tim 1: DaeReview Newsroom.
+            
+            Tugasmu adalah menulis artikel berita teknologi yang memikat, tajam, dan mendalam berstandar publikasi kelas dunia (seperti The Verge, Wired, Ars Technica, atau Kompas Tekno).
+            
+            ATURAN STRUKTUR BERITA:
+            1. Judul Berita: Menarik, lugas, faktual, tanpa clickbait murahan.
+            2. Lead Paragraf (5W+1H): Langsung menusuk ke inti persoalan di kalimat pertama.
+            3. Latar Belakang & Kronologi: Menjelaskan mengapa peristiwa ini terjadi sekarang.
+            4. Dampak & Respon Publik: Kutipan resmi, reaksi komunitas tech, atau analisa implikasi hukum/ekonomi di Indonesia.
+            5. Prospek ke Depan: Apa langkah selanjutnya yang harus diperhatikan pembaca.
+            
+            ATURAN KERAS (NEGATIVE PROMPTS):
+            ❌ DILARANG KERAS menyertakan tabel belanja "Klaim vs Realita Spek".
+            ❌ DILARANG KERAS menyertakan subjudul "Siapa yang Wajib Membeli" atau "Siapa yang Harus Skip/Lewatkan".
+            ❌ DILARANG KERAS menggunakan kata pembuka klise AI: "Di era digital yang berkembang pesat saat ini...".
+            ❌ Setiap subjudul WAJIB diawali ## dan dipisahkan 2 baris baru (\n\n).
+          type: text
+        - id: reporter-user-1
+          role: user
+          text: 'Riset Fakta dari Scout:\n{{#17909910000003.text#}}\n\nTopik Utama: {{#17909910000001.topic#}}\nAngle Khusus: {{#17909910000001.news_angle#}}\n\nTulis artikel berita jurnalistik lengkap sekarang.'
+          type: text
+        selected: false
+        title: Agent 2 - Tech Investigative Reporter
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 110
+      id: '17909910000004'
+      position:
+        x: 980
+        y: 280
+      positionAbsolute:
+        x: 980
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0.2
+          mode: chat
+          name: gemini-2.5-flash
+          provider: langgenius/gemini/gemini
+        prompt_template:
+        - id: editor-sys-1
+          role: system
+          text: |
+            Kamu adalah Managing Editor & Swiss Quality Gatekeeper Tim 1: DaeReview Newsroom.
+            
+            Tugasmu:
+            1. Proofread draf berita dari Reporter agar bebas dari gaya AI klise dan kesalahan ejaan.
+            2. Pastikan pemisahan paragraf dan heading rapi (## Heading selalu didahului 2 enter).
+            3. Tentukan kategori berita yang paling akurat: "Teknologi & AI", "Gadget", "Fakta vs Mitos", "Tren Belanja", atau "Smart Home".
+            4. Buat summary 1-2 kalimat padat untuk meta description Google & cuplikan Telegram.
+            
+            OUTPUT WAJIB DALAM BLOK JSON MURNI:
+            ```json
+            {
+              "title": "Judul Berita Tajam & Jelas",
+              "slug": "judul-berita-tajam-dan-jelas",
+              "category": "Teknologi & AI",
+              "summary": "Ringkasan tajam 1-2 kalimat untuk kartu berita.",
+              "readTime": "4 menit",
+              "content": "Paragraf 1 lead...\n\n## Subjudul Berita\n\nParagraf 2 konteks...\n\n## Analisis Implikasi\n\nParagraf 3 penutup...",
+              "author": "Tim Redaksi DaeReview",
+              "division": "Tim 1: DaeReview Newsroom",
+              "status": "draft",
+              "source_url": "{{#17909910000001.source_url#}}"
+            }
+            ```
+          type: text
+        - id: editor-user-1
+          role: user
+          text: 'Draf Berita Reporter:\n{{#17909910000004.text#}}\n\nPeriksa dan keluarkan format JSON final berstandar Swiss.'
+          type: text
+        selected: false
+        title: Agent 3 - Swiss Managing Editor
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 110
+      id: '17909910000005'
+      position:
+        x: 1280
+        y: 280
+      positionAbsolute:
+        x: 1280
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        code: |
+          import json
+          import re
+
+          def main(llm_text: str, source_url: str = "") -> dict:
+              cleaned = llm_text.strip() if llm_text else ""
+              match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', cleaned)
+              if match:
+                  cleaned = match.group(1).strip()
+              
+              data = {}
+              try:
+                  data = json.loads(cleaned)
+              except Exception:
+                  title_match = re.search(r'"title"\s*:\s*"([^"]+)"', cleaned)
+                  data["title"] = title_match.group(1) if title_match else "Laporan Khusus Redaksi DaeReview"
+                  data["summary"] = "Liputan investigasi terkini oleh Tim 1 Newsroom DaeReview."
+                  data["category"] = "Teknologi & AI"
+                  data["content"] = cleaned
+
+              title = data.get("title", "Kabar Terkini Teknologi DaeReview").strip()
+              raw_slug = data.get("slug") or ""
+              slug = re.sub(r'[^a-zA-Z0-9-]', '', raw_slug.lower().replace(' ', '-'))
+              if not slug:
+                  slug = "berita-" + str(abs(hash(title)) % 100000)
+
+              summary_text = data.get("summary") or "Liputan teknologi terkini oleh DaeReview Newsroom."
+              eff_source = data.get("source_url") or source_url or ""
+
+              payload = {
+                  "title": title,
+                  "slug": slug,
+                  "summary": summary_text,
+                  "category": data.get("category", "Teknologi & AI"),
+                  "author": data.get("author", "Tim Redaksi DaeReview"),
+                  "division": "Tim 1: DaeReview Newsroom",
+                  "readTime": data.get("readTime", "4 menit"),
+                  "content": data.get("content", cleaned),
+                  "source_url": eff_source,
+                  "status": "draft"
+              }
+
+              return {
+                  "title": payload["title"],
+                  "slug": payload["slug"],
+                  "summary": payload["summary"],
+                  "category": payload["category"],
+                  "json_payload": json.dumps(payload, ensure_ascii=False)
+              }
+        code_language: python3
+        outputs:
+          category:
+            type: string
+          json_payload:
+            type: string
+          slug:
+            type: string
+          summary:
+            type: string
+          title:
+            type: string
+        selected: false
+        title: Code Sanitizer & JSON Validator
+        type: code
+        variables:
+        - value_selector:
+          - '17909910000005'
+          - text
+          variable: llm_text
+        - value_selector:
+          - '17909910000001'
+          - source_url
+          variable: source_url
+      height: 120
+      id: '17909910000006'
+      position:
+        x: 1580
+        y: 280
+      positionAbsolute:
+        x: 1580
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        authorization:
+          config:
+            api_key: dae_dify_autonomous_webhook_secret_key
+            header: Authorization
+            type: bearer
+          type: api-key
+        body:
+          data: '{{#17909910000006.json_payload#}}'
+          type: json
+        headers: 'Content-Type: application/json
+
+          User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) DaeReview-Newsroom/1.0'
+        method: post
+        params: ''
+        selected: false
+        title: Kirim Draf ke DaeReview Webhook
+        type: http-request
+        url: https://daereview.daeroom.my.id/api/dify/publish
+      height: 120
+      id: '17909910000007'
+      position:
+        x: 1880
+        y: 280
+      positionAbsolute:
+        x: 1880
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
+        outputs:
+        - value_selector:
+          - '17909910000006'
+          - title
+          value_type: string
+          variable: title
+        - value_selector:
+          - '17909910000006'
+          - slug
+          value_type: string
+          variable: slug
+        - value_selector:
+          - '17909910000007'
+          - status_code
+          value_type: number
+          variable: publish_status
+        - value_selector:
+          - '17909910000007'
+          - body
+          value_type: string
+          variable: api_response
+        selected: false
+        title: Selesai - Draf Siap Direviu CEO
+        type: end
+      height: 110
+      id: '17909910000008'
+      position:
+        x: 2180
+        y: 280
+      positionAbsolute:
+        x: 2180
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+  rag_pipeline_variables: []
