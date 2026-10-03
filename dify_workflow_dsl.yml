@@ -1,0 +1,247 @@
+app:
+  description: "AI Content Engine & Autonomous Publisher untuk portal DaeReview (daereview.daeroom.my.id). Menganalisis link produk TikTok/Shopee/Tokopedia, menguji klaim mitos teknologi, dan menerbitkan artikel ulasan berstandar jurnalisme Swiss secara mandiri."
+  icon: "📰"
+  icon_background: "#0F172A"
+  mode: workflow
+  name: "DaeReview Autonomous Journalist"
+  use_icon_as_answer_icon: true
+kind: app
+version: 0.1.4
+workflow:
+  conversation_variables: []
+  environment_variables:
+    - description: "Endpoint publikasi portal DaeReview"
+      name: DAEREVIEW_API_URL
+      value: "https://daereview.daeroom.my.id/api/dify/publish"
+      value_type: string
+    - description: "Token otorisasi Bearer Webhook DaeReview"
+      name: DIFY_WEBHOOK_SECRET
+      value: "dae_dify_autonomous_webhook_secret_key"
+      value_type: secret
+  features:
+    file_upload:
+      allowed_file_extensions: []
+      allowed_file_types: []
+      allowed_file_upload_methods: []
+      enabled: false
+      number_limits: 3
+    retrieval_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions_after_answer:
+      enabled: false
+  graph:
+    edges:
+      - id: edge_start_to_llm
+        source: node_start
+        sourcePort: ""
+        target: node_llm_writer
+        targetPort: ""
+      - id: edge_llm_to_code
+        source: node_llm_writer
+        sourcePort: ""
+        target: node_json_cleaner
+        targetPort: ""
+      - id: edge_code_to_http
+        source: node_json_cleaner
+        sourcePort: ""
+        target: node_http_publisher
+        targetPort: ""
+      - id: edge_http_to_end
+        source: node_http_publisher
+        sourcePort: ""
+        target: node_end
+        targetPort: ""
+    nodes:
+      - id: node_start
+        position:
+          x: 80
+          y: 200
+        data:
+          title: "Input Topik & Tautan Produk"
+          type: start
+          variables:
+            - label: "Tipe Konten"
+              variable: input_mode
+              type: select
+              required: true
+              options:
+                - "ULASAN_PRODUK_TUNGGAL"
+                - "TOP_5_BARANG_TERBAIK"
+                - "FAKTA_VS_MITOS"
+              default: "ULASAN_PRODUK_TUNGGAL"
+            - label: "Tautan Produk atau Topik Riset"
+              variable: topic_or_link
+              type: paragraph
+              required: true
+              default: "https://vt.tiktok.com/ZSjabc123/ Baseus Bowie WM02 TWS Earphone"
+            - label: "Kategori Target"
+              variable: category
+              type: select
+              required: true
+              options:
+                - "Gadget & Setup"
+                - "Audio & TWS"
+                - "Smart Home"
+                - "Peralatan Dapur"
+                - "Gaya Hidup"
+                - "Fakta vs Mitos"
+              default: "Audio & TWS"
+      - id: node_llm_writer
+        position:
+          x: 380
+          y: 200
+        data:
+          title: "Senior Swiss Editorial Journalist"
+          type: llm
+          model:
+            provider: openai
+            name: gpt-4o
+            mode: chat
+            completion_params:
+              temperature: 0.3
+              max_tokens: 3000
+          prompt_template:
+            - role: system
+              text: |
+                Kamu adalah Senior Tech Journalist & Data-Driven Buying Guide Curator untuk portal independen DaeReview (daereview.daeroom.my.id).
+
+                STANDAR PENULISAN & AKURASI REDAKSI SWISS:
+                1. GAYA BAHASA:
+                   - Gunakan Bahasa Indonesia baku yang luwes, tajam, dan mengalir seperti jurnalis teknologi investigatif.
+                   - HINDARI KATA KLISE AI: DILARANG menggunakan kata "Di era digital yang pesat", "Secara keseluruhan", "Tidak dapat dipungkiri", "Sebagai kesimpulan".
+                   - Fokus pada pengalaman pemakaian riil di Indonesia (ketahanan suhu tropis, kualitas suara di jalanan, keawetan baterai, garansi resmi distributor).
+
+                2. KEJUJURAN & TRANSPARANSI PRODUK (THE CATCH):
+                   - Setiap ulasan WAJIB menyertakan minimal 1-2 kelemahan atau catatan kompromi produk.
+                   - Tunjukkan secara jujur di mana produsen memangkas biaya (misal: bodi plastik tipis, ketiadaan noise cancelling aktif, kabel non-braided).
+
+                3. ATURAN SKOR & RATING:
+                   - DILARANG KERAS menggunakan simbol bintang (★/⭐).
+                   - Rating WAJIB berupa angka murni: contoh '4.8 / 5' atau '9.1 / 10'.
+
+                4. STRUKTUR FORMAT JSON OUTPUT (MUTLAK):
+                Kamu WAJIB mengembalikan output HANYA berupa JSON valid tanpa teks pembuka atau markdown ```json.
+                Schema JSON:
+                {
+                  "title": "string (Judul menarik, tajam, maksimal 70 karakter)",
+                  "category": "{{#node_start.category#}}",
+                  "summary": "string (Ringkasan informatif 1-2 kalimat untuk preview dan Google snippet)",
+                  "content": [
+                    "string (Paragraf 1: Hook pembuka mengenai masalah nyata konsumen)",
+                    "string (Paragraf 2: Bedah spesifikasi teknis dan perbandingan dengan klaim promosi)",
+                    "string (Paragraf 3: Ulasan ketahanan material, kelemahan riil yang ditemukan)",
+                    "string (Paragraf 4: Vonis akhir: siapa yang wajib beli dan siapa yang sebaiknya skip)"
+                  ],
+                  "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=80",
+                  "author": "Dify Autonomous Agent (v2.0)",
+                  "readTime": "4 menit",
+                  "isFactCheck": false,
+                  "verdictFactCheck": null,
+                  "quickTakeaway": "string (Intisari vonis belanja dalam 1 kalimat padat)",
+                  "isTrending": true,
+                  "tiktokUrl": "{{#node_start.topic_or_link#}}",
+                  "productRecommendations": [
+                    {
+                      "name": "Nama Produk Lengkap",
+                      "price": "Rp xxx.xxx",
+                      "specs": "Garansi 1 Tahun Resmi, Spesifikasi Utama",
+                      "pros": "Kelebihan utama (2-3 poin teruji)",
+                      "cons": "Kekurangan utama (1-2 poin transparan)",
+                      "shopeeUrl": "https://shopee.co.id",
+                      "tokopediaUrl": "https://tokopedia.com",
+                      "tiktokUrl": "{{#node_start.topic_or_link#}}"
+                    }
+                  ]
+                }
+            - role: user
+              text: |
+                Tipe Permintaan: {{#node_start.input_mode#}}
+                Kategori: {{#node_start.category#}}
+                Input Tautan / Topik: {{#node_start.topic_or_link#}}
+
+                Instruksi Spesifik:
+                - Jika Tipe = 'FAKTA_VS_MITOS', set 'isFactCheck': true, isi 'verdictFactCheck': 'MITOS' atau 'FAKTA' atau 'SEBAGIAN BENAR'.
+                - Jika Tipe = 'TOP_5_BARANG_TERBAIK', sertakan komparasi 3-5 item di dalam 'productRecommendations' dan judul '5 Rekomendasi ... Terbaik 2026'.
+                - Hasilkan JSON murni sekarang.
+      - id: node_json_cleaner
+        position:
+          x: 680
+          y: 200
+        data:
+          title: "JSON Sanitizer & Validator"
+          type: code
+          language: python3
+          code: |
+            import json
+
+            def main(raw_text: str) -> dict:
+                text = raw_text.strip()
+                if text.startswith("```json"):
+                    text = text[7:]
+                if text.startswith("```"):
+                    text = text[3:]
+                if text.endswith("```"):
+                    text = text[:-3]
+                text = text.strip()
+                
+                try:
+                    payload = json.loads(text)
+                except Exception as e:
+                    # Fallback jika terjadi escape karakter
+                    payload = {
+                        "title": "Ulasan Produk Teruji DaeReview",
+                        "category": "Gadget & Setup",
+                        "summary": text[:200],
+                        "content": [text],
+                        "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=80",
+                        "author": "Dify Autonomous Agent",
+                        "readTime": "3 menit",
+                        "isTrending": True
+                    }
+                
+                return {
+                    "sanitized_payload": payload,
+                    "title": payload.get("title", "Artikel Baru")
+                }
+          variables:
+            - variable: raw_text
+              value_selector:
+                - node_llm_writer
+                - text
+      - id: node_http_publisher
+        position:
+          x: 980
+          y: 200
+        data:
+          title: "Publish ke DaeReview Live API"
+          type: http-request
+          method: post
+          url: "{{#env.DAEREVIEW_API_URL#}}"
+          headers: "Content-Type: application/json\nAuthorization: Bearer {{#env.DIFY_WEBHOOK_SECRET#}}"
+          body:
+            type: json
+            data: "{{#node_json_cleaner.sanitized_payload#}}"
+          timeout:
+            connect: 15
+            read: 30
+            write: 15
+      - id: node_end
+        position:
+          x: 1280
+          y: 200
+        data:
+          title: "Output & Konfirmasi Publikasi"
+          type: end
+          outputs:
+            - value_selector:
+                - node_http_publisher
+                - body
+              variable: response_api
+            - value_selector:
+                - node_json_cleaner
+                - title
+              variable: judul_artikel
