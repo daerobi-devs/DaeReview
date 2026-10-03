@@ -15,7 +15,12 @@ import {
   Trash2,
   FileText,
   Key,
-  Database
+  Database,
+  Copy,
+  Check,
+  BookOpen,
+  Code,
+  Terminal
 } from "lucide-react";
 import {
   DifyDraft,
@@ -35,6 +40,50 @@ export default function AdminDifyAIPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<"IDLE" | "CHECKING" | "CONNECTED">("CONNECTED");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [copiedPrompt, setCopiedPrompt] = useState(false);
+  const [copiedJson, setCopiedJson] = useState(false);
+  const difySystemPrompt = `Kamu adalah DaeReview AI Agent, jurnalis teknologi independen dan kurator belanja terpercaya untuk platform DaeReview (daereview.daeroom.my.id).
+
+TUGAS & STANDAR REDAKSI UTAMA:
+1. Prinsip Jurnalistik Swiss: Netral, berbasis data teknis dan pengujian riil (4-Layer Testing: Spesifikasi Manufaktur, Ketahanan Fisik, Verifikasi Ulasan Pembeli Riil Tanpa Bot, Rasio Nilai-ke-Harga).
+2. Anti-Bintang Palsu: DILARANG KERAS menggunakan rating bintang atau simbol bintang (★/⭐). Format rating resmi wajib murni numerik: '4.8 / 5' atau '9.2 / 10'.
+3. Fleksibilitas Format:
+   - FORMAT A (Berita / Tips / Tren / Review): Berita teknologi terkini, panduan memilih barang, komparasi produk, atau tips belanja hemat. Tanpa vonis mitos.
+   - FORMAT B (Cek Fakta / Fakta vs Mitos): Khusus membongkar salah kaprah teknologi atau klaim penjual menyesatkan. Wajib sertakan vonis: 'FAKTA', 'MITOS', atau 'SEBAGIAN BENAR' beserta intisari 'quickTakeaway'.
+4. Gaya Bahasa: Bahasa Indonesia yang baku, lugas, elegan, dan informatif bagi pembeli di Indonesia.
+5. Rekomendasi Marketplace: Dukung Shopee, Tokopedia, dan TikTok Shop dengan tautan produk terpercaya.`;
+
+  const difyWebhookJsonExample = `{
+  "title": "Mitos Layar 120Hz Bikin Baterai HP Cepat Rusak: Fakta Pengujian Lab",
+  "category": "Fakta vs Mitos",
+  "summary": "Banyak pengguna mematikan refresh rate 120Hz karena takut baterai cepat soak. Kami uji konsumsi daya selama 30 hari.",
+  "content": [
+    "Kekhawatiran bahwa layar refresh rate tinggi 120Hz dapat merusak kesehatan baterai smartphone telah lama beredar di komunitas gadget.",
+    "Berdasarkan pengujian teknis dan monitoring siklus discharge baterai Li-Po modern, refresh rate adaptif (LTPO) hanya meningkatkan konsumsi daya aktif sebesar 8-12%, bukan merusak kesehatan cell baterai.",
+    "Konsumen diimbau tidak perlu ragu menikmati kelembutan 120Hz, asalkan menghindari penggunaan ponsel saat suhu perangkat melebihi 42°C."
+  ],
+  "image": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1200&q=80",
+  "author": "Dify Autonomous Agent",
+  "readTime": "4 menit",
+  "isFactCheck": true,
+  "verdictFactCheck": "MITOS",
+  "quickTakeaway": "120Hz hanya memakan sedikit daya lebih banyak saat scrolling, namun sama sekali TIDAK mempercepat degradasi fisik baterai.",
+  "isTrending": true,
+  "tiktokUrl": "https://vt.tiktok.com/ZSjabc123/"
+}`;
+
+  const copyToClipboard = (text: string, type: "prompt" | "json") => {
+    navigator.clipboard.writeText(text);
+    if (type === "prompt") {
+      setCopiedPrompt(true);
+      setTimeout(() => setCopiedPrompt(false), 2500);
+    } else {
+      setCopiedJson(true);
+      setTimeout(() => setCopiedJson(false), 2500);
+    }
+    setToastMessage("Berhasil disalin ke clipboard!");
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   useEffect(() => {
     setDrafts(getDifyDrafts());
@@ -223,6 +272,125 @@ export default function AdminDifyAIPage() {
           <div className="text-[11px] text-slate-500">
             Ambil API Key dari menu <em>API Access</em> di dashboard Dify app kamu.
           </div>
+        </div>
+      </div>
+
+      {/* Dify AI Agent Blueprint & Webhook Protocol */}
+      <div className="bg-white border border-slate-200 shadow-xs rounded-2xl overflow-hidden">
+        <div className="p-5 sm:p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <BookOpen className="w-5 h-5 text-blue-900" />
+            <div>
+              <h2 className="text-base font-bold text-blue-950">
+                Blueprint & Panduan Konfigurasi Dify AI Agent
+              </h2>
+              <p className="text-xs text-slate-500">
+                Gunakan System Prompt dan skema Webhook di bawah ini pada Dify Studio agar AI Agent otomatis memahami standar redaksi DaeReview.
+              </p>
+            </div>
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-blue-100 text-blue-950 border border-blue-200 self-start sm:self-auto">
+            STANDAR REDAKSI SWISS v2.0
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-slate-100">
+          {/* Kolom 1: System Prompt Dify Agent */}
+          <div className="p-5 sm:p-6 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Terminal className="w-4 h-4 text-blue-800" />
+                <span className="text-xs font-bold text-blue-950 uppercase tracking-wider">
+                  1. System Prompt Dify Agent (Copas ke Dify)
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => copyToClipboard(difySystemPrompt, "prompt")}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-950 text-xs font-bold border border-blue-200 transition-colors cursor-pointer"
+              >
+                {copiedPrompt ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-emerald-700">Tersalin!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5 text-blue-700" />
+                    <span>Salin Prompt</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Karakter instruksi ini memastikan Dify Agent tidak menggunakan bintang palsu (★), mematuhi 4-Layer Testing, dan dapat menulis varian artikel fleksibel (berita umum vs cek fakta).
+            </p>
+
+            <pre className="text-[11px] font-mono bg-slate-900 text-slate-100 p-4 rounded-xl overflow-x-auto leading-relaxed max-h-64 whitespace-pre-wrap border border-slate-800">
+              {difySystemPrompt}
+            </pre>
+          </div>
+
+          {/* Kolom 2: Webhook Endpoint & JSON Payload */}
+          <div className="p-5 sm:p-6 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Code className="w-4 h-4 text-blue-800" />
+                <span className="text-xs font-bold text-blue-950 uppercase tracking-wider">
+                  2. Skema HTTP Request Node (Otomatis Publish)
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => copyToClipboard(difyWebhookJsonExample, "json")}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-950 text-xs font-bold border border-blue-200 transition-colors cursor-pointer"
+              >
+                {copiedJson ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-emerald-700">Tersalin!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5 text-blue-700" />
+                    <span>Salin JSON Payload</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="space-y-1.5 text-xs text-slate-600">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-800">Target Endpoint:</span>
+                <code className="text-[11px] bg-slate-100 px-2 py-0.5 rounded text-blue-900 font-mono font-semibold">
+                  POST https://daereview.daeroom.my.id/api/dify/publish
+                </code>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-800">Header Wajib:</span>
+                <code className="text-[11px] bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-mono">
+                  Authorization: Bearer dae_dify_autonomous_webhook_secret_key
+                </code>
+              </div>
+            </div>
+
+            <pre className="text-[11px] font-mono bg-slate-900 text-slate-100 p-4 rounded-xl overflow-x-auto leading-relaxed max-h-64 whitespace-pre-wrap border border-slate-800">
+              {difyWebhookJsonExample}
+            </pre>
+          </div>
+        </div>
+
+        <div className="p-4 bg-blue-50/70 border-t border-blue-100 text-xs text-blue-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <span>
+            💡 <strong>Info Alur Kerja:</strong> Saat Dify Workflow selesai meriset, node HTTP Request akan menembak endpoint di atas. Artikel langsung muncul di web dan bisa diedit kapan saja melalui menu <em>Kelola Berita & Cek Fakta</em>.
+          </span>
+          <Link
+            href="/admin/berita"
+            className="text-xs font-bold text-blue-800 hover:text-blue-950 underline shrink-0"
+          >
+            Buka Editor Berita →
+          </Link>
         </div>
       </div>
 

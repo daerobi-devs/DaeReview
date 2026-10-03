@@ -95,6 +95,7 @@ export async function POST(request: Request) {
       quickTakeaway,
       isTrending = false,
       relatedProductId,
+      tiktokUrl,
     } = body;
 
     if (!title || !summary) {
@@ -134,6 +135,7 @@ export async function POST(request: Request) {
       quickTakeaway: quickTakeaway || summary,
       isTrending,
       relatedProductId,
+      tiktokUrl: tiktokUrl || undefined,
       isCustom: true,
     };
 

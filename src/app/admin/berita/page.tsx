@@ -20,12 +20,14 @@ import {
   Eye,
   ArrowRight,
   RefreshCw,
-  FileCheck
+  FileCheck,
+  Pencil
 } from "lucide-react";
 import { MOCK_NEWS, MOCK_PRODUCTS, NewsArticle } from "@/data/mockData";
 import {
   getAllArticles,
   saveArticle,
+  updateArticle,
   deleteCustomArticle,
   slugify,
   NEWS_UPDATE_EVENT
@@ -49,10 +51,14 @@ export default function AdminBeritaPage() {
   const [selectedCat, setSelectedCat] = useState("Semua");
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
+  // Edit State
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
   // Form States
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
-  const [category, setCategory] = useState<NewsCategory>("Fakta vs Mitos");
+  const [category, setCategory] = useState<NewsCategory>("Teknologi & AI");
   const [author, setAuthor] = useState("Tim Riset DaeReview");
   const [readTime, setReadTime] = useState("4 menit");
   const [summary, setSummary] = useState("");
@@ -222,17 +228,36 @@ export default function AdminBeritaPage() {
           : [summary.trim(), "Informasi selengkapnya sedang disempurnakan oleh tim editorial."],
       isTrending,
       relatedProductId: relatedProductId || undefined,
-      isFactCheck: category === "Fakta vs Mitos" || isFactCheck,
-      verdictFactCheck: category === "Fakta vs Mitos" ? verdictFactCheck : undefined,
+      isFactCheck: isFactCheck || category === "Fakta vs Mitos",
+      verdictFactCheck: (isFactCheck || category === "Fakta vs Mitos") ? verdictFactCheck : undefined,
       quickTakeaway:
-        category === "Fakta vs Mitos" ? quickTakeaway.trim() || summary.trim() : undefined,
+        (isFactCheck || category === "Fakta vs Mitos") ? quickTakeaway.trim() || summary.trim() : undefined,
       tiktokUrl: tiktokUrl.trim() || undefined,
     };
 
-    // Save to local storage & broadcast
+    if (isEditing && editingId) {
+      // Mode Edit / Perbarui
+      updateArticle(editingId, articleData);
+
+      try {
+        await fetch("/api/news", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: editingId, ...articleData }),
+        });
+      } catch (err) {
+        console.warn("API update note:", err);
+      }
+
+      setSuccessToast(`Perubahan artikel "${articleData.title}" berhasil disimpan!`);
+      setTimeout(() => setSuccessToast(null), 4000);
+      handleCancelEdit();
+      return;
+    }
+
+    // Mode Buat Baru
     const saved = saveArticle(articleData);
 
-    // Also sync to server API
     try {
       await fetch("/api/news", {
         method: "POST",
@@ -245,10 +270,42 @@ export default function AdminBeritaPage() {
 
     setSuccessToast(`Artikel "${saved.title}" berhasil diterbitkan!`);
     setTimeout(() => setSuccessToast(null), 4000);
+    handleCancelEdit();
+  };
 
-    // Reset Form
+  const handleStartEdit = (article: NewsArticle) => {
+    setIsEditing(true);
+    setEditingId(article.id);
+    setTitle(article.title);
+    setSlug(article.slug);
+    setCategory(article.category);
+    setAuthor(article.author || "Tim Riset DaeReview");
+    setReadTime(article.readTime || "4 menit");
+    setSummary(article.summary || "");
+    setContentRaw((article.content || []).join("\n\n"));
+    setImageDataUrl(article.image || "");
+    setIsTrending(article.isTrending || false);
+    setRelatedProductId(article.relatedProductId || "");
+    setTiktokUrl(article.tiktokUrl || "");
+
+    const isFC = Boolean(article.isFactCheck || article.category === "Fakta vs Mitos");
+    setIsFactCheck(isFC);
+    if (article.verdictFactCheck) {
+      setVerdictFactCheck(article.verdictFactCheck);
+    }
+    setQuickTakeaway(article.quickTakeaway || "");
+
+    setActiveTab("create");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditingId(null);
     setTitle("");
     setSlug("");
+    setCategory("Teknologi & AI");
+    setIsFactCheck(false);
     setSummary("");
     setContentRaw("");
     setImageDataUrl("");
@@ -500,6 +557,15 @@ export default function AdminBeritaPage() {
                       <span>Lihat</span>
                     </Link>
 
+                    <button
+                      onClick={() => handleStartEdit(article)}
+                      className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-950 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                      title="Edit artikel ini"
+                    >
+                      <Pencil className="w-3.5 h-3.5 text-blue-800" />
+                      <span>Edit</span>
+                    </button>
+
                     {article.isCustom && (
                       <button
                         onClick={() => handleDeleteArticle(article)}
@@ -518,33 +584,101 @@ export default function AdminBeritaPage() {
         </div>
       )}
 
-      {/* TAB 2: FORM INPUT MANUAL ARTIKEL */}
+      {/* TAB 2: FORM INPUT & EDIT MANUAL ARTIKEL */}
       {activeTab === "create" && (
         <form onSubmit={handleSubmitArticle} className="space-y-8">
           <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
               <div>
                 <h2 className="text-lg font-bold text-blue-950 flex items-center gap-2">
-                  <span>✍️ Buat & Terbitkan Artikel Baru</span>
+                  <span>{isEditing ? "✏️ Mode Edit: Perbarui Artikel" : "✍️ Buat & Terbitkan Artikel Baru"}</span>
+                  {isEditing && (
+                    <span className="text-[10px] bg-amber-100 text-amber-900 border border-amber-300 font-bold px-2 py-0.5 rounded-full">
+                      SEDANG DI-EDIT
+                    </span>
+                  )}
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Isi formulir di bawah. Foto akan otomatis dikompres ke format modern WebP (~100KB) agar cepat diakses ribuan pengunjung.
+                  {isEditing
+                    ? "Perbaiki isi tulisan, gambar, link afiliasi, atau vonis mitos. Klik simpan untuk langsung mengupdate di web live."
+                    : "Pilih format artikel standar atau cek fakta. Foto akan otomatis dikompres ke WebP (~100KB)."}
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setTitle("Review Robot Vacuum Cleaner Xiaomi vs Dreame 2026: Mana yang Bersihnya Tuntas?");
-                  setSlug(slugify("Review Robot Vacuum Cleaner Xiaomi vs Dreame 2026: Mana yang Bersihnya Tuntas?"));
-                  setCategory("Smart Home");
-                  setSummary("Komparasi uji sedot debu karpet, pemetaan LiDAR, dan ketahanan baterai untuk rumah tangga Indonesia.");
-                  setContentRaw("Robot vacuum cleaner semakin populer di kalangan pekerja kantoran yang tidak memiliki banyak waktu untuk menyapu dan mengepel lantai setiap hari.\n\nDalam pengujian lab independen selama 14 hari, Xiaomi unggul pada aplikasi yang responsif, sedangkan Dreame memiliki daya hisap lebih kuat pada karpet tebal.\n\nKesimpulannya, untuk apartemen berlantai keramik Xiaomi adalah pilihan paling hemat, sedangkan rumah bertingkat lebih cocok dengan Dreame.");
-                }}
-                className="text-[11px] font-semibold text-blue-700 hover:text-blue-900 bg-blue-50 px-2.5 py-1.5 rounded-lg border border-blue-100 transition-colors"
-              >
-                Gunakan Contoh Data
-              </button>
+              {isEditing ? (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-xl border border-rose-200 transition-colors"
+                >
+                  Batal Edit
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsFactCheck(false);
+                    setTitle("Review Robot Vacuum Cleaner Xiaomi vs Dreame 2026: Mana yang Bersihnya Tuntas?");
+                    setSlug(slugify("Review Robot Vacuum Cleaner Xiaomi vs Dreame 2026: Mana yang Bersihnya Tuntas?"));
+                    setCategory("Smart Home");
+                    setSummary("Komparasi uji sedot debu karpet, pemetaan LiDAR, dan ketahanan baterai untuk rumah tangga Indonesia.");
+                    setContentRaw("Robot vacuum cleaner semakin populer di kalangan pekerja kantoran yang tidak memiliki banyak waktu untuk menyapu dan mengepel lantai setiap hari.\n\nDalam pengujian lab independen selama 14 hari, Xiaomi unggul pada aplikasi yang responsif, sedangkan Dreame memiliki daya hisap lebih kuat pada karpet tebal.\n\nKesimpulannya, untuk apartemen berlantai keramik Xiaomi adalah pilihan paling hemat, sedangkan rumah bertingkat lebih cocok dengan Dreame.");
+                  }}
+                  className="text-[11px] font-semibold text-blue-700 hover:text-blue-900 bg-blue-50 px-2.5 py-1.5 rounded-lg border border-blue-100 transition-colors"
+                >
+                  Gunakan Contoh Data
+                </button>
+              )}
+            </div>
+
+            {/* Pilihan Format Konten: Standar vs Cek Fakta */}
+            <div className="p-4 rounded-2xl bg-blue-50/50 border border-blue-100 space-y-2">
+              <label className="block text-xs font-bold text-blue-950 uppercase tracking-wider">
+                Pilih Tipe / Varian Artikel:
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsFactCheck(false);
+                    if (category === "Fakta vs Mitos") setCategory("Teknologi & AI");
+                  }}
+                  className={`p-3 rounded-xl border text-xs font-bold transition-all text-left flex items-start gap-2.5 cursor-pointer ${
+                    !isFactCheck
+                      ? "bg-white border-blue-950 text-blue-950 shadow-xs ring-2 ring-blue-950/10"
+                      : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-white"
+                  }`}
+                >
+                  <Newspaper className="w-4 h-4 mt-0.5 text-blue-900 shrink-0" />
+                  <div>
+                    <span>Artikel Standar (Berita, Tren, Tips, Review)</span>
+                    <span className="block text-[11px] font-normal text-slate-500 mt-0.5">
+                      Bebas tanpa vonis redaksi. Cocok untuk kabar teknologi, tren belanja, gadget, atau tips hemat.
+                    </span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsFactCheck(true);
+                    setCategory("Fakta vs Mitos");
+                  }}
+                  className={`p-3 rounded-xl border text-xs font-bold transition-all text-left flex items-start gap-2.5 cursor-pointer ${
+                    isFactCheck
+                      ? "bg-white border-blue-950 text-blue-950 shadow-xs ring-2 ring-blue-950/10"
+                      : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-white"
+                  }`}
+                >
+                  <HelpCircle className="w-4 h-4 mt-0.5 text-orange-600 shrink-0" />
+                  <div>
+                    <span>Rubrik Cek Fakta (Fakta vs Mitos)</span>
+                    <span className="block text-[11px] font-normal text-slate-500 mt-0.5">
+                      Menyertakan kotak Vonis Redaksi (Mitos / Fakta / Sebagian Benar) untuk debunking isu elektronik/gadget.
+                    </span>
+                  </div>
+                </button>
+              </div>
             </div>
 
             {/* Auto-Fetch TikTok Affiliate Box */}
@@ -674,7 +808,7 @@ export default function AdminBeritaPage() {
             </div>
 
             {/* Conditional Box: Fakta vs Mitos Verdict */}
-            {category === "Fakta vs Mitos" && (
+            {(isFactCheck || category === "Fakta vs Mitos") && (
               <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border-2 border-blue-200 space-y-4">
                 <div className="flex items-center gap-2">
                   <HelpCircle className="w-4 h-4 text-blue-900" />
@@ -944,14 +1078,14 @@ export default function AdminBeritaPage() {
               </div>
             </div>
 
-            {/* Tombol Terbitkan */}
+            {/* Tombol Terbitkan / Simpan */}
             <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setActiveTab("list")}
+                onClick={handleCancelEdit}
                 className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
               >
-                Batal
+                {isEditing ? "Batal Edit" : "Batal"}
               </button>
 
               <button
@@ -959,7 +1093,7 @@ export default function AdminBeritaPage() {
                 className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-blue-950 hover:bg-blue-900 text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Sparkles className="w-4 h-4 text-amber-300" />
-                <span>🚀 Terbitkan Artikel Sekarang</span>
+                <span>{isEditing ? "💾 Simpan Perubahan Artikel" : "🚀 Terbitkan Artikel Sekarang"}</span>
               </button>
             </div>
           </div>

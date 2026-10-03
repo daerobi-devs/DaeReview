@@ -70,6 +70,52 @@ export function saveArticle(
 }
 
 /**
+ * Mengubah / mengedit artikel yang sudah ada
+ * Jika artikel berasal dari MOCK_NEWS, otomatis dikonversi menjadi custom override
+ */
+export function updateArticle(
+  id: string,
+  updatedData: Partial<NewsArticle>
+): NewsArticle | null {
+  const current = getCustomArticles();
+  const existing = current.find((a) => a.id === id);
+
+  if (!existing) {
+    const mock = MOCK_NEWS.find((m) => m.id === id);
+    if (!mock) return null;
+
+    const newOverride: NewsArticle = {
+      ...mock,
+      ...updatedData,
+      id,
+      isCustom: true,
+    };
+
+    const updated = [newOverride, ...current.filter((a) => a.id !== id && a.slug !== newOverride.slug)];
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new CustomEvent(NEWS_UPDATE_EVENT, { detail: newOverride }));
+    }
+    return newOverride;
+  }
+
+  const updatedArticle: NewsArticle = {
+    ...existing,
+    ...updatedData,
+    id,
+    isCustom: true,
+  };
+
+  const updated = current.map((a) => (a.id === id ? updatedArticle : a));
+  if (typeof window !== "undefined") {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent(NEWS_UPDATE_EVENT, { detail: updatedArticle }));
+  }
+
+  return updatedArticle;
+}
+
+/**
  * Menghapus artikel kustom
  */
 export function deleteCustomArticle(articleId: string): boolean {

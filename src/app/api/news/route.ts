@@ -81,6 +81,54 @@ export async function POST(request: Request) {
   }
 }
 
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    if (!body.id) {
+      return NextResponse.json(
+        { error: "ID artikel wajib disertakan untuk update." },
+        { status: 400 }
+      );
+    }
+
+    const current = readCustomNewsFromFile();
+    const existingIndex = current.findIndex((a) => a.id === body.id);
+    let updated: NewsArticle[];
+
+    if (existingIndex >= 0) {
+      const merged: NewsArticle = {
+        ...current[existingIndex],
+        ...body,
+        isCustom: true,
+      };
+      current[existingIndex] = merged;
+      updated = current;
+    } else {
+      const mock = MOCK_NEWS.find((m) => m.id === body.id);
+      const newArticle: NewsArticle = {
+        ...(mock || {}),
+        ...body,
+        id: body.id,
+        isCustom: true,
+      };
+      updated = [newArticle, ...current.filter((a) => a.slug !== newArticle.slug)];
+    }
+
+    writeCustomNewsToFile(updated);
+
+    return NextResponse.json({
+      success: true,
+      message: "Artikel berhasil diperbarui",
+      article: body,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Gagal memperbarui artikel." },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
