@@ -141,21 +141,48 @@ workflow:
       width: 243
       zIndex: 0
     - data:
-        is_team_authorization: false
-        param:
-          query: '{{#17909930000001.input_text#}} tren teknologi gadget indonesia terkini'
+        is_team_authorization: true
+        paramSchemas:
+        - form: llm
+          label:
+            en_US: Query string
+            zh_Hans: 查询语句
+          llm_description: Key words for searching
+          name: query
+          required: true
+          type: string
+        params:
+          backend: ''
+          max_results: ''
+          proxy_server: ''
+          query: ''
+          require_summary: ''
+        plugin_id: langgenius/duckduckgo
+        plugin_unique_identifier: langgenius/duckduckgo:0.0.13@ae397e4ae1d9d2dc66572d50a4b74b228f0b7a117734db574fe9773cca0c183b
         provider_id: langgenius/duckduckgo/duckduckgo
-        provider_name: duckduckgo
-        provider_type: marketplace
+        provider_name: langgenius/duckduckgo/duckduckgo
+        provider_show_name: DuckDuckGo
+        provider_type: builtin
         selected: false
         title: DuckDuckGo Market & Trend Radar
-        tool_configurations: {}
+        tool_configurations:
+          backend:
+            type: mixed
+            value: null
+          max_results:
+            type: constant
+            value: 6
+          proxy_server:
+            type: mixed
+            value: null
+          require_summary:
+            type: constant
+            value: true
+        tool_description: Perform searches on DuckDuckGo and get real results.
         tool_label: DuckDuckGo Search
         tool_name: ddgo_search
+        tool_node_version: '2'
         tool_parameters:
-          max_results:
-            type: mixed
-            value: 6
           query:
             type: mixed
             value: '{{#17909930000001.input_text#}} tren teknologi gadget indonesia terkini'
