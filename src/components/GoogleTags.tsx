@@ -14,13 +14,13 @@ export default function GoogleTags({
   gscVerificationId = process.env.NEXT_PUBLIC_GSC_VERIFICATION || "",
   adsenseClientId = process.env.NEXT_PUBLIC_ADSENSE_ID || "",
 }: GoogleTagsProps) {
-  // Sitelinks Search Box Schema for Google Search Engine Rank #1 boost
+  // Sitelinks Search Box Schema & Official Google Site Name Specification
   const websiteSchema = {
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: "DaeReview",
-    alternateName: "DaeReview Indonesia",
-    url: "https://daereview.daeroom.my.id",
+    alternateName: ["DaeReview Indonesia", "Dae Review", "daereview.daeroom.my.id"],
+    url: "https://daereview.daeroom.my.id/",
     potentialAction: {
       "@type": "SearchAction",
       target: {

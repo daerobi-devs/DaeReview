@@ -52,6 +52,16 @@ export default function Footer() {
           </h4>
           <ul className="space-y-2 text-xs">
             <li>
+              <Link href="/tentang" className="text-slate-600 hover:text-slate-950 transition-colors font-medium">
+                Tentang Redaksi & Lab Uji
+              </Link>
+            </li>
+            <li>
+              <Link href="/kontak" className="text-slate-600 hover:text-slate-950 transition-colors font-medium">
+                Kontak & Hak Jawab
+              </Link>
+            </li>
+            <li>
               <Link href="/pedoman-editorial" className="text-slate-600 hover:text-slate-950 transition-colors">
                 Pedoman Editorial & Afiliasi
               </Link>
@@ -64,11 +74,6 @@ export default function Footer() {
             <li>
               <Link href="/syarat-ketentuan" className="text-slate-600 hover:text-slate-950 transition-colors">
                 Syarat & Ketentuan Layanan
-              </Link>
-            </li>
-            <li>
-              <Link href="/berita" className="text-slate-600 hover:text-slate-950 transition-colors">
-                Kabar & Tren Belanja
               </Link>
             </li>
           </ul>

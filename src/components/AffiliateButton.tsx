@@ -2,6 +2,7 @@
 
 import React from "react";
 import { trackAffiliateClick } from "@/lib/tracking";
+import { buildAffiliateUrl } from "@/lib/affiliate";
 
 interface AffiliateButtonProps {
   store: "shopee" | "tokopedia" | "tiktok";
@@ -22,10 +23,17 @@ export default function AffiliateButton({
   className,
   children,
 }: AffiliateButtonProps) {
+  const finalUrl = buildAffiliateUrl({
+    store,
+    rawUrl: href,
+    productName,
+    subId: sourcePage?.replace(/\//g, "-") || "daereview",
+  });
+
   const handleClick = () => {
     trackAffiliateClick({
       store,
-      targetUrl: href,
+      targetUrl: finalUrl,
       productName,
       productId,
       sourcePage,
@@ -34,7 +42,7 @@ export default function AffiliateButton({
 
   return (
     <a
-      href={href}
+      href={finalUrl}
       target="_blank"
       rel="noopener noreferrer nofollow"
       onClick={handleClick}

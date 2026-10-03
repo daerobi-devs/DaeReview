@@ -17,6 +17,7 @@ import {
   ArrowRight,
   ExternalLink
 } from "lucide-react";
+import AffiliateButton from "@/components/AffiliateButton";
 
 export default function Header() {
   const router = useRouter();
@@ -177,14 +178,16 @@ export default function Header() {
                             </div>
                           </div>
                         </div>
-                        <a
+                        <AffiliateButton
+                          store="shopee"
                           href={item.shopeeUrl}
-                          target="_blank"
-                          rel="noopener noreferrer nofollow"
-                          className="shrink-0 bg-[#EE4D2D] hover:bg-[#d83d1e] text-white text-[11px] font-bold px-2.5 py-1 rounded-md"
+                          productName={item.name}
+                          productId={item.id}
+                          sourcePage="/search-popup"
+                          className="shrink-0 bg-[#EE4D2D] hover:bg-[#d83d1e] text-white text-[11px] font-bold px-2.5 py-1 rounded-md cursor-pointer"
                         >
                           Shopee
-                        </a>
+                        </AffiliateButton>
                       </div>
                     ))}
                   </div>

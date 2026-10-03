@@ -14,6 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://daereview.daeroom.my.id"),
+  applicationName: "DaeReview",
+  publisher: "DaeReview",
   title: "DaeReview — Panduan Belanja Cerdas & Kabar Tren Terpercaya",
   description:
     "Portal ulasan produk independen, perbandingan spesifikasi gadget, audio TWS, smart home, dan kabar tren teknologi harian terpercaya di Indonesia.",
@@ -28,6 +31,12 @@ export const metadata: Metadata = {
     "daereview"
   ],
   authors: [{ name: "DaeReview Editorial Team" }],
+  alternates: {
+    canonical: "/",
+    types: {
+      "application/rss+xml": "/rss.xml",
+    },
+  },
   openGraph: {
     title: "DaeReview — Ulasan Jujur & Panduan Belanja Terpercaya",
     description:

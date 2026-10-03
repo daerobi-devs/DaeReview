@@ -381,6 +381,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
 
   return {
     metadataBase: new URL("https://daereview.daeroom.my.id"),
+    applicationName: "DaeReview",
     title: `${article.title} — DaeReview`,
     description: article.summary,
     alternates: {
@@ -390,7 +391,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
       title: article.title,
       description: article.summary,
       url: pageUrl,
-      siteName: "DaeReview — Panduan Belanja & Ulasan Teruji",
+      siteName: "DaeReview",
       locale: "id_ID",
       type: "article",
       images: [

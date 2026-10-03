@@ -3,6 +3,7 @@
 import React from "react";
 import { Product } from "@/data/mockData";
 import { ArrowRight, ExternalLink, SlidersHorizontal } from "lucide-react";
+import AffiliateButton from "@/components/AffiliateButton";
 
 interface ComparisonTableProps {
   products: Product[];
@@ -88,15 +89,17 @@ export default function ComparisonTable({ products }: ComparisonTableProps) {
 
                   {/* CTA */}
                   <td className="py-4 px-6 text-center">
-                    <a
+                    <AffiliateButton
+                      store="shopee"
                       href={item.shopeeUrl}
-                      target="_blank"
-                      rel="noopener noreferrer nofollow"
-                      className="inline-flex items-center gap-1.5 bg-[#EE4D2D] hover:bg-[#D73211] text-white text-xs font-bold py-2 px-3.5 rounded-lg shadow-2xs transition-all whitespace-nowrap"
+                      productName={item.name}
+                      productId={item.id}
+                      sourcePage="/#perbandingan"
+                      className="inline-flex items-center gap-1.5 bg-[#EE4D2D] hover:bg-[#D73211] text-white text-xs font-bold py-2 px-3.5 rounded-lg shadow-2xs transition-all whitespace-nowrap cursor-pointer"
                     >
                       <span>Cek Shopee</span>
                       <ExternalLink className="w-3 h-3" />
-                    </a>
+                    </AffiliateButton>
                   </td>
                 </tr>
               ))}

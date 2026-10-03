@@ -5,6 +5,7 @@ import { MOCK_PRODUCTS } from "@/data/mockData";
 import { getDynamicCategories, CategoryItem } from "@/lib/dynamicCategories";
 import { ArrowRight, ExternalLink, Award, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import AffiliateButton from "@/components/AffiliateButton";
 
 interface HeroProps {
   activeCategory: string;
@@ -108,15 +109,17 @@ export default function Hero({ activeCategory, onSelectCategory }: HeroProps) {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <a
+                  <AffiliateButton
+                    store="shopee"
                     href={featuredProduct.shopeeUrl}
-                    target="_blank"
-                    rel="noopener noreferrer nofollow"
-                    className="inline-flex items-center gap-2 bg-[#EE4D2D] hover:bg-[#D73211] text-white text-xs sm:text-sm font-bold py-2.5 px-5 rounded-xl shadow-xs transition-colors"
+                    productName={featuredProduct.name}
+                    productId={featuredProduct.id}
+                    sourcePage="/"
+                    className="inline-flex items-center gap-2 bg-[#EE4D2D] hover:bg-[#D73211] text-white text-xs sm:text-sm font-bold py-2.5 px-5 rounded-xl shadow-xs transition-colors cursor-pointer"
                   >
                     <span>Cek di Shopee</span>
                     <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
+                  </AffiliateButton>
 
                   <Link
                     href="#rekomendasi"
