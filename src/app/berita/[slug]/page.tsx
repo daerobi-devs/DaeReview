@@ -78,6 +78,8 @@ async function getArticleServer(slug: string): Promise<NewsArticle | undefined> 
         tiktokUrl: data.tiktok_url || undefined,
         isCustom: true,
         status: data.status || "published",
+        sources: data.sources || undefined,
+        sourceUrl: data.source_url || undefined,
       };
     }
   } catch (dbErr) {
@@ -617,6 +619,47 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
               );
             })}
           </article>
+
+          {/* Box Rujukan Sumber Berita Terverifikasi (Kredibilitas Editorial) */}
+          {((article.sources && article.sources.length > 0) || article.sourceUrl) && (
+            <div className="my-8 p-5 sm:p-6 rounded-2xl bg-slate-50 border border-slate-200/90 shadow-2xs space-y-3">
+              <div className="flex items-center gap-2 text-xs font-black text-slate-800 uppercase tracking-wider">
+                <ShieldCheck className="w-4 h-4 text-blue-600" />
+                <span>Rujukan & Sumber Berita Terverifikasi</span>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Sebagai komitmen pada jurnalisme berimbang dan transparan, data serta fakta dalam laporan ini dihimpun dan diverifikasi silang dari publikasi rujukan berikut:
+              </p>
+              <div className="flex flex-wrap gap-2.5 pt-1">
+                {article.sources && article.sources.length > 0 ? (
+                  article.sources.map((src, sIdx) => (
+                    <a
+                      key={sIdx}
+                      href={src.url}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 text-slate-800 text-xs sm:text-sm font-semibold transition-all group shadow-2xs"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                      <span className="group-hover:text-blue-700">{src.name || src.url}</span>
+                      <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600" />
+                    </a>
+                  ))
+                ) : article.sourceUrl ? (
+                  <a
+                    href={article.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 text-slate-800 text-xs sm:text-sm font-semibold transition-all group shadow-2xs"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                    <span className="group-hover:text-blue-700">Publikasi Sumber Rujukan</span>
+                    <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600" />
+                  </a>
+                ) : null}
+              </div>
+            </div>
+          )}
 
           {/* Subtle Bottom Share Bar */}
           <div className="my-8 pt-6 border-t border-slate-200 flex items-center justify-between">

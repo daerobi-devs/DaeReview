@@ -124,6 +124,14 @@ async function notifyTelegram(
     const theCatchClean = cleanTgText(theCatch || "");
     const divClean = cleanTgText(divisionName);
 
+    const sourcesLines = article.sources && article.sources.length > 0
+      ? [
+          ``,
+          `📚 *Rujukan Sumber Liputan:*`,
+          ...article.sources.slice(0, 3).map((s) => `• [${cleanTgText(s.name || "Sumber")}](${s.url})`),
+        ]
+      : [];
+
     const lines = [
       isDraft ? `🟡 *(DRAF SIAP DIREVIU - DAE REVIEW)*` : `📢 *(ARTIKEL RESMI TERBIT)*`,
       ``,
@@ -135,6 +143,7 @@ async function notifyTelegram(
       `📊 *Status:* ${statusLabel}`,
       theCatchClean ? `⚠️ *The Catch:* _${theCatchClean}_` : "",
       productLink ? `🔗 *Sumber Link:* ${productLink}` : "",
+      ...sourcesLines,
       ``,
       `💡 *Ringkasan:*`,
       `${summaryClean}`,
@@ -369,6 +378,37 @@ export async function POST(request: Request) {
         ? "Tim 2: DaeReview Product Lab"
         : "Tim 1: DaeReview Newsroom");
 
+    const rawSources = body.sources || body.references || [];
+    const sourceUrl = (body.source_url || body.sourceUrl || body.product_link || body.productLink || "").trim();
+    let articleSources: { name: string; url: string; publisher?: string }[] = [];
+    if (Array.isArray(rawSources)) {
+      articleSources = rawSources
+        .map((s: any) => {
+          if (typeof s === "string") {
+            const urlMatch = s.match(/(https?:\/\/[^\s)]+)/);
+            return {
+              name: s.replace(/https?:\/\/[^\s)]+/, "").replace(/^[-\s*\[\]\(\)]+/, "").trim() || "Rujukan Berita",
+              url: urlMatch ? urlMatch[1] : s,
+            };
+          }
+          if (s && typeof s === "object") {
+            return {
+              name: s.name || s.title || s.publisher || "Sumber Terverifikasi",
+              url: s.url || s.link || "",
+              publisher: s.publisher,
+            };
+          }
+          return null;
+        })
+        .filter((s): s is { name: string; url: string; publisher?: string } => Boolean(s && s.url && s.url.startsWith("http")));
+    }
+    if (articleSources.length === 0 && sourceUrl && sourceUrl.startsWith("http")) {
+      articleSources.push({
+        name: "Sumber Rujukan Utama",
+        url: sourceUrl,
+      });
+    }
+
     const newArticle: NewsArticle = {
       id: `dify-${Date.now()}`,
       title: title.trim(),
@@ -392,6 +432,8 @@ export async function POST(request: Request) {
       tiktokUrl: tiktokUrl || undefined,
       isCustom: true,
       status: body.status === "published" ? "published" : "draft",
+      sources: articleSources.length > 0 ? articleSources : undefined,
+      sourceUrl: sourceUrl || undefined,
     };
 
     // 4. Simpan ke Supabase Database (public.articles)

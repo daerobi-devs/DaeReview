@@ -42,6 +42,12 @@ export type NewsCategoryType =
   | "Software & Aplikasi AI"
   | string;
 
+export interface ArticleSource {
+  name: string;
+  url: string;
+  publisher?: string;
+}
+
 export interface NewsArticle {
   id: string;
   title: string;
@@ -61,6 +67,8 @@ export interface NewsArticle {
   isCustom?: boolean;
   tiktokUrl?: string;
   status?: "draft" | "published";
+  sources?: ArticleSource[];
+  sourceUrl?: string;
 }
 
 export const CATEGORIES = [

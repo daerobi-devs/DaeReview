@@ -268,10 +268,20 @@ workflow:
                - Siapa pihak, perusahaan, pejabat, atau figur yang terlibat?
                - Apa kutipan atau poin pernyataan resmi terpenting?
                - Apa implikasi konkret terhadap pengguna atau pasar di Indonesia?
+            3. EKSTRAKSI RUJUKAN SUMBER MEDIA (WAJIB):
+               - Temukan dan catat semua nama media besar (misalnya: Reuters, Bloomberg, Kompas Tekno, Detik, Antara, The Verge, Wired, siaran pers resmi, dsb.) beserta tautan URL asli yang ditemukan di hasil pencarian.
+               - Jika input pengguna menyertakan sumber ({{#17909910000001.source_url#}}), sertakan juga ke daftar rujukan.
+            
+            FORMAT KELUARAN SCOUT (WAJIB):
+            ### RINGKASAN FAKTA & KRONOLOGI
+            (Tuliskan poin fakta terverifikasi dan kutipan akurat)
+            
+            ### DAFTAR MEDIA & RUJUKAN SUMBER ASLI
+            - [Nama Media / Judul Berita](URL Asli): Poin fakta utama yang dilaporkan
             
             ATURAN TEGAS:
             - JANGAN membuat panduan belanja, komparasi harga Shopee, atau tabel review produk.
-            - Hasilkan ringkasan fakta terverifikasi dan kutipan yang akurat.
+            - Hasilkan ringkasan fakta terverifikasi dan rujukan link sumber yang valid.
           type: text
         - id: scout-user-1
           role: user
@@ -320,7 +330,12 @@ workflow:
             2. Lead Paragraf (5W+1H): Langsung menusuk ke inti persoalan di kalimat pertama.
             3. Latar Belakang & Kronologi: Menjelaskan mengapa peristiwa ini terjadi sekarang.
             4. Dampak & Respon Publik: Kutipan resmi, reaksi komunitas tech, atau analisa implikasi hukum/ekonomi di Indonesia.
-            5. Prospek ke Depan: Apa langkah selanjutnya yang harus diperhatikan pembaca.
+            5. Atribusi Jurnalistik Riil: Cantumkan media atau rujukan terpercaya di dalam narasi kalimat (misalnya: "Sebagaimana dilaporkan Reuters...", "Menurut penelusuran Kompas Tekno...", "Berdasarkan siaran pers resmi...").
+            6. Prospek ke Depan: Apa langkah selanjutnya yang harus diperhatikan pembaca.
+            7. Subjudul Sumber & Rujukan Berita (WAJIB di akhir artikel):
+               ## Sumber & Rujukan Berita
+               Sertakan daftar media dan tautan rujukan yang diriset oleh Scout dalam format markdown:
+               - [Nama Media / Judul Laporan](URL Rujukan)
             
             ATURAN KERAS (NEGATIVE PROMPTS):
             ❌ DILARANG KERAS menyertakan tabel belanja "Klaim vs Realita Spek".
@@ -382,11 +397,17 @@ workflow:
               "category": "Teknologi & AI",
               "summary": "Ringkasan tajam 1-2 kalimat untuk kartu berita.",
               "readTime": "4 menit",
-              "content": "Paragraf 1 lead...\n\n## Subjudul Berita\n\nParagraf 2 konteks...\n\n## Analisis Implikasi\n\nParagraf 3 penutup...",
+              "content": "Paragraf 1 lead...\n\n## Subjudul Berita\n\nParagraf 2 konteks...\n\n## Sumber & Rujukan Berita\n- [Nama Media](https://...)",
               "author": "Tim Redaksi DaeReview",
               "division": "Tim 1: DaeReview Newsroom",
               "status": "draft",
-              "source_url": "{{#17909910000001.source_url#}}"
+              "source_url": "{{#17909910000001.source_url#}}",
+              "sources": [
+                {
+                  "name": "Nama Media Publikasi (cth: Kompas / The Verge / Reuters)",
+                  "url": "https://..."
+                }
+              ]
             }
             ```
           type: text
@@ -445,6 +466,16 @@ workflow:
               eff_source = data.get("source_url") or source_url or ""
               eff_cat = category_input.strip() if category_input and category_input.strip() else data.get("category", "Teknologi & AI")
 
+              eff_sources = data.get("sources", [])
+              if not eff_sources:
+                  content_str = data.get("content", "")
+                  link_matches = re.findall(r'\[([^\]]+)\]\((https?://[^\)]+)\)', content_str)
+                  for name, url in link_matches:
+                      if "daereview" not in url.lower():
+                          eff_sources.append({"name": name.strip(), "url": url.strip()})
+              if not eff_sources and eff_source:
+                  eff_sources = [{"name": "Sumber Rujukan Utama", "url": eff_source}]
+
               payload = {
                   "title": title,
                   "slug": slug,
@@ -455,6 +486,7 @@ workflow:
                   "readTime": data.get("readTime", "4 menit"),
                   "content": data.get("content", cleaned),
                   "source_url": eff_source,
+                  "sources": eff_sources,
                   "status": "draft"
               }
 
