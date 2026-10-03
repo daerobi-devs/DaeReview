@@ -3,15 +3,20 @@
 # Optimized for Coolify, Docker Compose, and Standalone Deployment
 # ==========================================
 
-# 1. Base Image
-FROM node:20-alpine AS base
+# 1. Base Image - Node 22 LTS Alpine
+FROM node:22-alpine AS base
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # 2. Dependencies Stage
 FROM base AS deps
+WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci
+
+# Force NODE_ENV to development during deps installation
+# This guarantees that all required build dependencies (Tailwind, PostCSS, TypeScript) are installed
+ENV NODE_ENV=development
+RUN npm ci --include=dev
 
 # 3. Builder Stage
 FROM base AS builder
@@ -28,6 +33,7 @@ ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
 ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
 ENV NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
 
 RUN npm run build
 
