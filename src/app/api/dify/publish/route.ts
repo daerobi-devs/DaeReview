@@ -40,6 +40,63 @@ function slugify(text: string): string {
     .replace(/-+$/, "");
 }
 
+const CATEGORY_DEFAULT_IMAGES: Record<string, string> = {
+  smartphone: "https://images.unsplash.com/photo-1598327105666-5b89351aff97?auto=format&fit=crop&w=1200&q=80",
+  laptop: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=1200&q=80",
+  audio: "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&w=1200&q=80",
+  accessories: "https://images.unsplash.com/photo-1622434641406-a158123450f9?auto=format&fit=crop&w=1200&q=80",
+  gadget: "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=1200&q=80",
+  "myth-busting": "https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&w=1200&q=80",
+  "fakta vs mitos": "https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&w=1200&q=80",
+  "teknologi & ai": "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1200&q=80",
+  default: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80",
+};
+
+async function fetchOgImage(urlStr: string): Promise<string | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch(urlStr, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+      },
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+
+    const reader = res.body?.getReader();
+    if (!reader) return null;
+    let html = "";
+    let bytesRead = 0;
+    while (bytesRead < 70000) {
+      const { done, value } = await reader.read();
+      if (done || !value) break;
+      html += new TextDecoder("utf-8").decode(value);
+      bytesRead += value.length;
+      if (html.includes("</head>")) break;
+    }
+    controller.abort();
+
+    const ogMatch =
+      html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
+      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i) ||
+      html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i) ||
+      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i);
+
+    if (ogMatch && ogMatch[1]) {
+      let imgUrl = ogMatch[1].trim();
+      if (imgUrl.startsWith("//")) imgUrl = "https:" + imgUrl;
+      if (imgUrl.startsWith("http")) return imgUrl;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Endpoint Khusus untuk Dify AI Agent
  * Memungkinkan Dify Workflow menerbitkan artikel berita, tren, cek fakta, atau ulasan produk
@@ -109,11 +166,52 @@ export async function POST(request: Request) {
 
     // 3. Normalisasi Struktur Artikel
     const cleanSlug = body.slug ? slugify(body.slug) : slugify(title);
-    const paragraphs = Array.isArray(content)
-      ? content
-      : typeof content === "string"
-      ? content.split(/\n\s*\n/).filter((p: string) => p.trim().length > 0)
-      : [effectiveSummary];
+    
+    let rawText = "";
+    if (Array.isArray(content)) {
+      rawText = content.join("\n\n");
+    } else if (typeof content === "string") {
+      rawText = content;
+    } else {
+      rawText = effectiveSummary;
+    }
+
+    // Normalisasi spasi sebelum dan sesudah heading serta list item
+    const normalizedText = rawText
+      .replace(/([^\n])\n(#{1,4}\s+[^\n]+)/g, "$1\n\n$2")
+      .replace(/(#{1,4}\s+[^\n]+)\n([^\n#])/g, "$1\n\n$2")
+      .replace(/([^\n])\n([-*]\s+[^\n]+)/g, "$1\n\n$2");
+
+    const paragraphs = normalizedText
+      .split(/\n\s*\n/)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+
+    // Ekstraksi Gambar Asli (OG Image / Sumber Link / Kategori)
+    let finalImage = (image || "").trim();
+    const targetLink = (
+      body.product_link ||
+      body.productLink ||
+      body.source_url ||
+      body.sourceUrl ||
+      body.link ||
+      body.url ||
+      ""
+    ).trim();
+
+    // Jika belum ada gambar spesifik atau masih gambar sirkuit generik, coba scrape dari link sumber
+    if ((!finalImage || finalImage.includes("photo-1518770660439-4636190af475")) && targetLink && targetLink.startsWith("http")) {
+      const scrapedImg = await fetchOgImage(targetLink);
+      if (scrapedImg) {
+        finalImage = scrapedImg;
+      }
+    }
+
+    // Jika tetap belum ada, gunakan gambar kurasi sesuai kategori
+    if (!finalImage || finalImage.includes("photo-1518770660439-4636190af475")) {
+      const catKey = category.toLowerCase().trim();
+      finalImage = CATEGORY_DEFAULT_IMAGES[catKey] || CATEGORY_DEFAULT_IMAGES.default;
+    }
 
     const newArticle: NewsArticle = {
       id: `dify-${Date.now()}`,
@@ -122,9 +220,7 @@ export async function POST(request: Request) {
       category,
       summary: effectiveSummary,
       content: paragraphs,
-      image:
-        image ||
-        "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80",
+      image: finalImage,
       author,
       readTime,
       date: new Intl.DateTimeFormat("id-ID", {

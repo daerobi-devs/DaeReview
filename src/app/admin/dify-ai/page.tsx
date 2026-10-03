@@ -20,7 +20,10 @@ import {
   Check,
   BookOpen,
   Code,
-  Terminal
+  Terminal,
+  Download,
+  Users,
+  ShieldCheck
 } from "lucide-react";
 import {
   DifyDraft,
@@ -238,6 +241,98 @@ TUGAS & STANDAR REDAKSI UTAMA:
           </form>
           <div className="text-[11px] text-slate-500">
             Ambil API Key dari menu <em>API Access</em> di dashboard Dify app kamu.
+          </div>
+        </div>
+      </div>
+
+      {/* AUTONOMOUS MULTI-AGENT EDITORIAL SQUAD (TIM REDAKSI OTONOM) */}
+      <div className="bg-linear-to-br from-slate-900 via-blue-950 to-slate-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-800 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-bold text-cyan-400 uppercase tracking-wider mb-1">
+              <Users className="w-4 h-4" />
+              <span>DAEREVIEW VIRTUAL EDITORIAL SQUAD</span>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              Tim Redaksi Multi-Agent Terpadu di Dify
+            </h2>
+            <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+              Arsitektur pipeline otonom yang bekerja seperti satu tim redaksi utuh: dari riset tren & pain point konsumen, audit spesifikasi lab, penulisan mendalam, hingga quality gate & auto-publish ke portal.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+            <a
+              href="/dify_editorial_squad_workflow.yml"
+              download="dify_editorial_squad_workflow.yml"
+              className="px-4 py-2.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-blue-950 text-xs font-extrabold transition-all flex items-center gap-2 shadow-lg cursor-pointer"
+            >
+              <Download className="w-4 h-4" />
+              <span>Download File Dify DSL (.yml)</span>
+            </a>
+          </div>
+        </div>
+
+        {/* 4 Agent Roles Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Agent 1 */}
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2 hover:border-cyan-400/40 transition-colors">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-cyan-300">AGENT 1</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-900/60 text-blue-200">Riset Topik</span>
+            </div>
+            <h3 className="text-sm font-bold text-white">Trend & Topic Scout</h3>
+            <p className="text-[11px] text-slate-300 leading-relaxed">
+              Membedah isu viral, mencari <em>Golden Angle</em> berita, dan menemukan rasa penasaran terbesar calon pembeli di media sosial & Google.
+            </p>
+          </div>
+
+          {/* Agent 2 */}
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2 hover:border-cyan-400/40 transition-colors">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-emerald-400">AGENT 2</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-300">Lab & Pasar</span>
+            </div>
+            <h3 className="text-sm font-bold text-white">Product & Lab Analyst</h3>
+            <p className="text-[11px] text-slate-300 leading-relaxed">
+              Membedah spesifikasi teknis, menyaring keluhan riil pembeli di Shopee/Tokopedia, dan menghitung skor <em>Value-for-Money</em> murni angka.
+            </p>
+          </div>
+
+          {/* Agent 3 */}
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2 hover:border-cyan-400/40 transition-colors">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-amber-400">AGENT 3</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-950/60 text-amber-300">Copywriter</span>
+            </div>
+            <h3 className="text-sm font-bold text-white">Lead Editorial Writer</h3>
+            <p className="text-[11px] text-slate-300 leading-relaxed">
+              Menulis naskah lengkap bergaya Daerobi: tanpa basa-basi klise robot, menggunakan H2/H3, kotak tips <code>&gt; 💡</code>, dan tabel komparasi.
+            </p>
+          </div>
+
+          {/* Agent 4 */}
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2 hover:border-cyan-400/40 transition-colors">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-purple-400">AGENT 4</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-950/60 text-purple-300">Manajemen</span>
+            </div>
+            <h3 className="text-sm font-bold text-white">Chief Editor & Manager</h3>
+            <p className="text-[11px] text-slate-300 leading-relaxed">
+              Quality Assurance (QC) terakhir, merapikan judul dengan CTR tinggi, meta description SEO, dan mengemas JSON valid ke portal.
+            </p>
+          </div>
+        </div>
+
+        {/* Quick Instructions */}
+        <div className="p-4 rounded-2xl bg-blue-950/40 border border-blue-900/60 text-xs text-slate-300 flex items-start gap-3">
+          <Zap className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-semibold text-white">Cara Pasang 1-Klik di Dify Studio:</p>
+            <p className="text-slate-300">
+              1. Klik tombol <strong>Download File Dify DSL (.yml)</strong> di atas. <br />
+              2. Buka Dify Anda di <a href="https://dify.daeroom.my.id" target="_blank" className="text-cyan-300 underline font-mono">https://dify.daeroom.my.id</a> ➔ Klik <strong>Create from DSL</strong> ➔ Pilih file yang baru Anda download. Seluruh tim agent langsung terbentuk otomatis!
+            </p>
           </div>
         </div>
       </div>

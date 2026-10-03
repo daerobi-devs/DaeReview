@@ -86,12 +86,123 @@ async function getArticleServer(slug: string): Promise<NewsArticle | undefined> 
   return MOCK_NEWS.find((item) => item.slug === slug);
 }
 
+type ContentBlock =
+  | { type: "h1"; text: string }
+  | { type: "h2"; text: string }
+  | { type: "h3"; text: string }
+  | { type: "h4"; text: string }
+  | { type: "quote"; text: string; isTip: boolean }
+  | { type: "table"; headerCols: string[]; dataRows: string[][] }
+  | { type: "list"; items: string[] }
+  | { type: "paragraph"; text: string };
+
 function formatInlineMarkdown(text: string): string {
   return text
-    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-slate-900">$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold text-slate-900">$1</strong>')
+    .replace(/__([^_]+)__/g, '<strong class="font-bold text-slate-900">$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em class="italic text-slate-800">$1</em>')
+    .replace(/_([^_]+)_/g, '<em class="italic text-slate-800">$1</em>')
     .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer nofollow" class="text-blue-700 underline font-semibold hover:text-blue-900">$1</a>')
     .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 text-sm font-mono">$1</code>');
+}
+
+function parseArticleContent(content: string[] | string): ContentBlock[] {
+  const fullText = Array.isArray(content) ? content.join("\n\n") : (content || "");
+  const lines = fullText.split(/\r?\n/).map((l) => l.trimEnd());
+
+  const blocks: ContentBlock[] = [];
+  let currentList: string[] = [];
+  let currentTable: string[] = [];
+
+  const flushList = () => {
+    if (currentList.length > 0) {
+      blocks.push({ type: "list", items: [...currentList] });
+      currentList = [];
+    }
+  };
+
+  const flushTable = () => {
+    if (currentTable.length > 0) {
+      const validRows = currentTable
+        .map((r) => r.trim())
+        .filter((r) => r.startsWith("|") && !r.includes("---"));
+      if (validRows.length > 0) {
+        const headerCols = validRows[0]
+          .split("|")
+          .map((c) => c.trim())
+          .filter(Boolean);
+        const dataRows = validRows
+          .slice(1)
+          .map((r) => r.split("|").map((c) => c.trim()).filter(Boolean));
+        if (headerCols.length > 0) {
+          blocks.push({ type: "table", headerCols, dataRows });
+        }
+      }
+      currentTable = [];
+    }
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i];
+    const trimmed = rawLine.trim();
+
+    if (!trimmed) {
+      flushList();
+      flushTable();
+      continue;
+    }
+
+    // 1. Table row
+    if (trimmed.startsWith("|") && trimmed.includes("|", 1)) {
+      flushList();
+      currentTable.push(trimmed);
+      continue;
+    } else {
+      flushTable();
+    }
+
+    // 2. Unordered List Item
+    if (/^[-*]\s+/.test(trimmed)) {
+      currentList.push(trimmed.replace(/^[-*]\s+/, ""));
+      continue;
+    } else {
+      flushList();
+    }
+
+    // 3. Headings
+    if (trimmed.startsWith("#### ")) {
+      blocks.push({ type: "h4", text: trimmed.slice(5).trim() });
+      continue;
+    }
+    if (trimmed.startsWith("### ")) {
+      blocks.push({ type: "h3", text: trimmed.slice(4).trim() });
+      continue;
+    }
+    if (trimmed.startsWith("## ")) {
+      blocks.push({ type: "h2", text: trimmed.slice(3).trim() });
+      continue;
+    }
+    if (trimmed.startsWith("# ")) {
+      blocks.push({ type: "h1", text: trimmed.slice(2).trim() });
+      continue;
+    }
+
+    // 4. Blockquote / Tip Callout
+    if (trimmed.startsWith(">")) {
+      const quoteText = trimmed.replace(/^>\s*/, "");
+      const isTip = quoteText.includes("💡") || /inside tip/i.test(quoteText) || /tips redaksi/i.test(quoteText);
+      blocks.push({ type: "quote", text: quoteText, isTip });
+      continue;
+    }
+
+    // 5. Standard Paragraph
+    blocks.push({ type: "paragraph", text: trimmed });
+  }
+
+  flushList();
+  flushTable();
+
+  return blocks;
 }
 
 function getOtherArticlesServer(currentId: string): NewsArticle[] {
@@ -360,81 +471,136 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             </div>
           )}
 
-          {/* Article Content Paragraphs */}
+          {/* Article Content Blocks */}
           <article className="prose prose-slate max-w-none text-slate-700 space-y-6 text-base sm:text-lg leading-relaxed font-normal">
-            {article.content.map((paragraph, index) => {
-              const trimmed = paragraph.trim();
-              if (trimmed.startsWith("### ")) {
+            {parseArticleContent(article.content).map((block, index) => {
+              if (block.type === "h1") {
                 return (
-                  <h3 key={index} className="text-xl sm:text-2xl font-bold text-slate-900 mt-6 mb-2 tracking-tight">
-                    {trimmed.replace(/^###\s+/, "")}
-                  </h3>
-                );
-              }
-              if (trimmed.startsWith("## ")) {
-                return (
-                  <h2 key={index} className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-8 mb-3 tracking-tight border-b border-slate-100 pb-2">
-                    {trimmed.replace(/^##\s+/, "")}
+                  <h2
+                    key={index}
+                    className="text-2xl sm:text-3xl font-black text-slate-950 mt-10 mb-4 tracking-tight border-b-2 border-slate-900/10 pb-3"
+                  >
+                    {block.text}
                   </h2>
                 );
               }
-              if (trimmed.startsWith("> ")) {
+
+              if (block.type === "h2") {
                 return (
-                  <blockquote
+                  <h2
                     key={index}
-                    className="p-4 my-5 bg-amber-50/70 border-l-4 border-amber-500 rounded-r-2xl text-slate-800 text-sm sm:text-base leading-relaxed font-medium shadow-2xs"
-                    dangerouslySetInnerHTML={{ __html: formatInlineMarkdown(trimmed.replace(/^>\s+/, "")) }}
-                  />
+                    className="text-xl sm:text-2xl font-black text-slate-900 mt-8 mb-3 tracking-tight border-b border-slate-200/80 pb-2"
+                  >
+                    {block.text}
+                  </h2>
                 );
               }
-              if (trimmed.startsWith("|") || (trimmed.includes("|") && trimmed.includes("---"))) {
-                const rows = trimmed.split("\n").map((r) => r.trim()).filter((r) => r.startsWith("|") && !r.includes("---"));
-                if (rows.length > 0) {
-                  const headerCols = rows[0].split("|").map((c) => c.trim()).filter(Boolean);
-                  const dataRows = rows.slice(1).map((r) => r.split("|").map((c) => c.trim()).filter(Boolean));
 
+              if (block.type === "h3") {
+                return (
+                  <h3
+                    key={index}
+                    className="text-lg sm:text-xl font-bold text-slate-900 mt-6 mb-2 tracking-tight"
+                  >
+                    {block.text}
+                  </h3>
+                );
+              }
+
+              if (block.type === "h4") {
+                return (
+                  <h4
+                    key={index}
+                    className="text-base sm:text-lg font-bold text-slate-900 mt-5 mb-2"
+                  >
+                    {block.text}
+                  </h4>
+                );
+              }
+
+              if (block.type === "quote") {
+                if (block.isTip) {
                   return (
-                    <div key={index} className="my-6 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-xs">
-                      <table className="w-full text-left text-xs sm:text-sm">
-                        <thead className="bg-slate-50 border-b border-slate-200 text-slate-900 font-extrabold">
-                          <tr>
-                            {headerCols.map((th, hIdx) => (
-                              <th key={hIdx} className="px-4 py-3 font-bold text-blue-950">
-                                {th}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 text-slate-700">
-                          {dataRows.map((row, rIdx) => (
-                            <tr key={rIdx} className="hover:bg-slate-50/60 transition-colors">
-                              {row.map((cell, cIdx) => (
-                                <td key={cIdx} className="px-4 py-3" dangerouslySetInnerHTML={{ __html: formatInlineMarkdown(cell) }} />
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div
+                      key={index}
+                      className="p-4 sm:p-5 my-6 bg-amber-50/80 border-l-4 border-amber-500 rounded-r-2xl text-slate-900 text-sm sm:text-base leading-relaxed font-medium shadow-xs space-y-1.5"
+                    >
+                      <div className="flex items-center gap-1.5 text-xs font-black text-amber-800 uppercase tracking-wider">
+                        <span>💡 INSIDE TIP REDAKSI</span>
+                      </div>
+                      <div
+                        dangerouslySetInnerHTML={{
+                          __html: formatInlineMarkdown(
+                            block.text
+                              .replace(/^💡\s*/, "")
+                              .replace(/^\*\*DaeReview Inside Tip:\*\*\s*/i, "")
+                          ),
+                        }}
+                      />
                     </div>
                   );
                 }
-              }
-              if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
                 return (
-                  <div key={index} className="flex items-start gap-2.5 my-2 ml-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-2.5 shrink-0" />
-                    <span
-                      className="text-slate-700 leading-relaxed"
-                      dangerouslySetInnerHTML={{ __html: formatInlineMarkdown(trimmed.replace(/^[-*]\s+/, "")) }}
-                    />
+                  <blockquote
+                    key={index}
+                    className="p-4 my-5 bg-slate-50 border-l-4 border-slate-400 rounded-r-2xl text-slate-800 text-sm sm:text-base italic leading-relaxed shadow-2xs"
+                    dangerouslySetInnerHTML={{ __html: formatInlineMarkdown(block.text) }}
+                  />
+                );
+              }
+
+              if (block.type === "table") {
+                return (
+                  <div key={index} className="my-6 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-xs">
+                    <table className="w-full text-left text-xs sm:text-sm">
+                      <thead className="bg-slate-50 border-b border-slate-200 text-slate-900 font-extrabold">
+                        <tr>
+                          {block.headerCols.map((th, hIdx) => (
+                            <th key={hIdx} className="px-4 py-3 font-bold text-blue-950">
+                              {th}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-700">
+                        {block.dataRows.map((row, rIdx) => (
+                          <tr key={rIdx} className="hover:bg-slate-50/60 transition-colors">
+                            {row.map((cell, cIdx) => (
+                              <td
+                                key={cIdx}
+                                className="px-4 py-3"
+                                dangerouslySetInnerHTML={{ __html: formatInlineMarkdown(cell) }}
+                              />
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 );
               }
+
+              if (block.type === "list") {
+                return (
+                  <ul key={index} className="my-4 space-y-2.5 pl-1">
+                    {block.items.map((item, itemIdx) => (
+                      <li
+                        key={itemIdx}
+                        className="flex items-start gap-3 text-slate-700 leading-relaxed text-base sm:text-lg"
+                      >
+                        <span className="w-2 h-2 rounded-full bg-blue-900 mt-2.5 shrink-0" />
+                        <span dangerouslySetInnerHTML={{ __html: formatInlineMarkdown(item) }} />
+                      </li>
+                    ))}
+                  </ul>
+                );
+              }
+
               return (
                 <p
                   key={index}
-                  className="leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: formatInlineMarkdown(trimmed) }}
+                  className="leading-relaxed text-slate-700 text-base sm:text-lg"
+                  dangerouslySetInnerHTML={{ __html: formatInlineMarkdown(block.text) }}
                 />
               );
             })}
