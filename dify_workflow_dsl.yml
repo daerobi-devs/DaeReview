@@ -325,20 +325,22 @@ workflow:
           \ slug = \"ulasan-gadget-\" + str(abs(hash(data.get('title', ''))) % 100000)\n\
           \    data['slug'] = slug\n    \n    rating_val = 8.0\n    try:\n       \
           \ rating_val = float(data.get('rating', 8.0))\n    except Exception:\n \
-          \       rating_val = 8.0\n        \n    payload = {\n        \"title\":\
-          \ data.get(\"title\", \"Ulasan Gadget DaeReview\"),\n        \"slug\": slug,\n\
-          \        \"excerpt\": data.get(\"excerpt\", \"\"),\n        \"category\"\
-          : data.get(\"category\", \"gadget\"),\n        \"author\": data.get(\"author\"\
-          , \"DaeReview AI Editorial\"),\n        \"readTime\": \"6 min\",\n     \
-          \   \"content\": data.get(\"content\", \"\"),\n        \"rating\": rating_val,\n\
-          \        \"pros\": data.get(\"pros\", []),\n        \"cons\": data.get(\"\
-          cons\", []),\n        \"the_catch\": data.get(\"the_catch\", \"\"),\n  \
-          \      \"verdict\": data.get(\"verdict\", \"\")\n    }\n    \n    return\
-          \ {\n        \"title\": payload[\"title\"],\n        \"slug\": payload[\"\
-          slug\"],\n        \"excerpt\": payload[\"excerpt\"],\n        \"the_catch\"\
-          : payload[\"the_catch\"],\n        \"verdict\": payload[\"verdict\"],\n\
-          \        \"rating\": payload[\"rating\"],\n        \"json_payload\": json.dumps(payload,\
-          \ ensure_ascii=False)\n    }\n"
+          \       rating_val = 8.0\n        \n    summary_text = data.get('summary')\
+          \ or data.get('excerpt') or \"Ulasan komprehensif gadget berstandar editorial\
+          \ Swiss oleh DaeReview.\"\n    payload = {\n        \"title\": data.get(\"\
+          title\", \"Ulasan Gadget DaeReview\"),\n        \"slug\": slug,\n      \
+          \  \"summary\": summary_text,\n        \"excerpt\": summary_text,\n    \
+          \    \"category\": data.get(\"category\", \"gadget\"),\n        \"author\"\
+          : data.get(\"author\", \"DaeReview AI Editorial\"),\n        \"readTime\"\
+          : \"6 min\",\n        \"content\": data.get(\"content\", \"\"),\n      \
+          \  \"rating\": rating_val,\n        \"pros\": data.get(\"pros\", []),\n\
+          \        \"cons\": data.get(\"cons\", []),\n        \"the_catch\": data.get(\"\
+          the_catch\", \"\"),\n        \"verdict\": data.get(\"verdict\", \"\")\n\
+          \    }\n    \n    return {\n        \"title\": payload[\"title\"],\n   \
+          \     \"slug\": payload[\"slug\"],\n        \"excerpt\": payload[\"excerpt\"\
+          ],\n        \"the_catch\": payload[\"the_catch\"],\n        \"verdict\"\
+          : payload[\"verdict\"],\n        \"rating\": payload[\"rating\"],\n    \
+          \    \"json_payload\": json.dumps(payload, ensure_ascii=False)\n    }\n"
         code_language: python3
         outputs:
           excerpt:
@@ -387,7 +389,9 @@ workflow:
         body:
           data: '{{#17909800000004.json_payload#}}'
           type: json
-        headers: 'Content-Type: application/json'
+        headers: 'Content-Type: application/json
+
+          User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) DaeReview-Dify/1.0'
         method: post
         params: ''
         selected: false
