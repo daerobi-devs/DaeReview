@@ -161,7 +161,7 @@ async function chatWithDifyPM(
     const payload: any = {
       inputs: {},
       query,
-      response_mode: "blocking",
+      response_mode: "streaming",
       user: `telegram-${chatId}`,
     };
     if (prevConvId) payload.conversation_id = prevConvId;
@@ -180,13 +180,37 @@ async function chatWithDifyPM(
       return null;
     }
 
-    const data = await res.json();
-    if (data.conversation_id) {
-      saveStoredConversationId(chatId, data.conversation_id);
+    const rawText = await res.text();
+    let accumulatedAnswer = "";
+    let finalConvId = "";
+
+    const lines = rawText.split("\n");
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("data: ")) {
+        const jsonStr = trimmed.slice(6).trim();
+        if (jsonStr === "[DONE]") continue;
+        try {
+          const parsed = JSON.parse(jsonStr);
+          if (parsed.conversation_id) {
+            finalConvId = parsed.conversation_id;
+          }
+          if (parsed.event === "agent_message" || parsed.event === "message") {
+            accumulatedAnswer += parsed.answer || "";
+          }
+        } catch {
+          // ignore chunk parse error
+        }
+      }
     }
+
+    if (finalConvId) {
+      saveStoredConversationId(chatId, finalConvId);
+    }
+
     return {
-      answer: data.answer || "",
-      conversationId: data.conversation_id || "",
+      answer: accumulatedAnswer.trim(),
+      conversationId: finalConvId,
     };
   } catch (err) {
     console.error("Gagal chat dengan Dify PM:", err);
@@ -312,29 +336,62 @@ export async function POST(request: Request) {
 
         await answerCallbackQuery(cqId, "🚀 Menugaskan Tim 1: Newsroom...");
 
-        // Otomatis picu workflow Dify jika API Key disetel
-        if (DIFY_NEWSROOM_API_KEY) {
-          try {
-            await fetch(`${DIFY_SERVER_URL}/v1/workflows/run`, {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${DIFY_NEWSROOM_API_KEY}`,
-                "Content-Type": "application/json",
+        // Cek apakah API Key masih kosong atau placeholder
+        if (!DIFY_NEWSROOM_API_KEY || DIFY_NEWSROOM_API_KEY.includes("kunci-tim")) {
+          await sendTelegramMessage(
+            chatId,
+            [
+              `⚠️ *(KUNCI API TIM 1 BELUM AKTIF)*`,
+              ``,
+              `Server belum memiliki API Key asli untuk Workflow Tim 1 (Newsroom).`,
+              `Di server nilainya masih placeholder (\`app-kunci-tim-1\`).`,
+              ``,
+              `🔑 *Solusi:*`,
+              `1. Buka Dify -> Workflow Tim 1 -> Menu Titik Akses (Kunci API)`,
+              `2. Salin kuncinya (format \`app-...\`) lalu simpan di Coolify sebagai \`DIFY_NEWSROOM_API_KEY\`.`,
+              ``,
+              `💡 *Atau Jalankan Manual:* Buka Dify web dan jalankan Tim 1 dengan topik:`,
+              `*${topic}*`,
+            ].join("\n")
+          );
+          return NextResponse.json({ ok: true });
+        }
+
+        try {
+          const wfRes = await fetch(`${DIFY_SERVER_URL}/v1/workflows/run`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${DIFY_NEWSROOM_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              inputs: {
+                topic: topic,
+                category: "Teknologi & AI",
+                source_url: "",
+                news_angle: angle || "Investigatif & Mendalam",
               },
-              body: JSON.stringify({
-                inputs: {
-                  topic: topic,
-                  category: "Teknologi & AI",
-                  source_url: "",
-                  news_angle: angle || "Investigatif & Mendalam",
-                },
-                response_mode: "streaming",
-                user: `telegram-${chatId}`,
-              }),
-            });
-          } catch (difyErr) {
-            console.error("Gagal auto-trigger Dify Newsroom:", difyErr);
+              response_mode: "streaming",
+              user: `telegram-${chatId}`,
+            }),
+          });
+
+          if (!wfRes.ok) {
+            const errText = await wfRes.text();
+            console.error("Gagal auto-trigger Dify Newsroom:", errText);
+            await sendTelegramMessage(
+              chatId,
+              `❌ *Dify Menolak Perintah Workflow Tim 1:*\nHTTP ${wfRes.status}: \`${errText.slice(0, 200)}\``
+            );
+            return NextResponse.json({ ok: true });
           }
+        } catch (difyErr: any) {
+          console.error("Gagal auto-trigger Dify Newsroom:", difyErr);
+          await sendTelegramMessage(
+            chatId,
+            `❌ *Gagal Menghubungi Dify Server:* ${difyErr?.message || "Koneksi terputus"}`
+          );
+          return NextResponse.json({ ok: true });
         }
 
         await sendTelegramMessage(
@@ -375,29 +432,62 @@ export async function POST(request: Request) {
 
         await answerCallbackQuery(cqId, "🔬 Menugaskan Tim 2: Product Lab...");
 
-        // Otomatis picu workflow Dify jika API Key disetel
-        if (DIFY_PRODUCT_LAB_API_KEY) {
-          try {
-            await fetch(`${DIFY_SERVER_URL}/v1/workflows/run`, {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${DIFY_PRODUCT_LAB_API_KEY}`,
-                "Content-Type": "application/json",
+        // Cek apakah API Key masih kosong atau placeholder
+        if (!DIFY_PRODUCT_LAB_API_KEY || DIFY_PRODUCT_LAB_API_KEY.includes("kunci-tim")) {
+          await sendTelegramMessage(
+            chatId,
+            [
+              `⚠️ *(KUNCI API TIM 2 BELUM AKTIF)*`,
+              ``,
+              `Server belum memiliki API Key asli untuk Workflow Tim 2 (Product Lab).`,
+              `Di server nilainya masih placeholder (\`app-kunci-tim-2\`).`,
+              ``,
+              `🔑 *Solusi:*`,
+              `1. Buka Dify -> Workflow Tim 2 -> Menu Titik Akses (Kunci API)`,
+              `2. Salin kuncinya (format \`app-...\`) lalu simpan di Coolify sebagai \`DIFY_PRODUCT_LAB_API_KEY\`.`,
+              ``,
+              `💡 *Atau Jalankan Manual:* Buka Dify web dan jalankan Tim 2 dengan nama barang:`,
+              `*${topic}*`,
+            ].join("\n")
+          );
+          return NextResponse.json({ ok: true });
+        }
+
+        try {
+          const wfRes = await fetch(`${DIFY_SERVER_URL}/v1/workflows/run`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${DIFY_PRODUCT_LAB_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              inputs: {
+                product_name: topic,
+                category: "Gadget & Teknologi",
+                marketplace_url: "",
+                price_range: "Pasaran Indonesia",
               },
-              body: JSON.stringify({
-                inputs: {
-                  product_name: topic,
-                  category: "Gadget & Teknologi",
-                  marketplace_url: "",
-                  price_range: "Pasaran Indonesia",
-                },
-                response_mode: "streaming",
-                user: `telegram-${chatId}`,
-              }),
-            });
-          } catch (difyErr) {
-            console.error("Gagal auto-trigger Dify Product Lab:", difyErr);
+              response_mode: "streaming",
+              user: `telegram-${chatId}`,
+            }),
+          });
+
+          if (!wfRes.ok) {
+            const errText = await wfRes.text();
+            console.error("Gagal auto-trigger Dify Product Lab:", errText);
+            await sendTelegramMessage(
+              chatId,
+              `❌ *Dify Menolak Perintah Workflow Tim 2:*\nHTTP ${wfRes.status}: \`${errText.slice(0, 200)}\``
+            );
+            return NextResponse.json({ ok: true });
           }
+        } catch (difyErr: any) {
+          console.error("Gagal auto-trigger Dify Product Lab:", difyErr);
+          await sendTelegramMessage(
+            chatId,
+            `❌ *Gagal Menghubungi Dify Server:* ${difyErr?.message || "Koneksi terputus"}`
+          );
+          return NextResponse.json({ ok: true });
         }
 
         await sendTelegramMessage(
