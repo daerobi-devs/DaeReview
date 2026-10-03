@@ -121,10 +121,29 @@ export default function AdminBeritaPage() {
     }
   };
 
-  // Load articles
-  const loadArticles = () => {
-    const all = getAllArticles();
-    setArticles(all);
+  const [isLoadingArticles, setIsLoadingArticles] = useState(false);
+
+  // Load articles (sync with server /api/news so Dify articles show up)
+  const loadArticles = async () => {
+    const local = getAllArticles();
+    setArticles(local);
+
+    try {
+      setIsLoadingArticles(true);
+      const res = await fetch("/api/news");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.articles && Array.isArray(data.articles)) {
+          const serverSlugs = new Set(data.articles.map((a: NewsArticle) => a.slug));
+          const localOnly = local.filter((a) => a.isCustom && !serverSlugs.has(a.slug));
+          setArticles([...localOnly, ...data.articles]);
+        }
+      }
+    } catch (err) {
+      console.warn("Gagal memuat artikel server:", err);
+    } finally {
+      setIsLoadingArticles(false);
+    }
   };
 
   useEffect(() => {
@@ -320,6 +339,8 @@ export default function AdminBeritaPage() {
     if (!confirm(`Hapus artikel "${article.title}"?`)) return;
 
     deleteCustomArticle(article.id);
+    setArticles((prev) => prev.filter((a) => a.id !== article.id && a.slug !== article.slug));
+
     try {
       await fetch(`/api/news?id=${encodeURIComponent(article.id)}`, {
         method: "DELETE",
@@ -433,6 +454,16 @@ export default function AdminBeritaPage() {
           <span className="px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-extrabold border border-emerald-200">
             Auto-Kompres ~100KB
           </span>
+        </button>
+
+        <button
+          onClick={() => loadArticles()}
+          disabled={isLoadingArticles}
+          title="Sinkronkan artikel dari server & Dify AI"
+          className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer border border-slate-200"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${isLoadingArticles ? "animate-spin text-blue-600" : "text-slate-600"}`} />
+          <span>{isLoadingArticles ? "Menyinkronkan..." : "Sinkron Data"}</span>
         </button>
       </div>
 

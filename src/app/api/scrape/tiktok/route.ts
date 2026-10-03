@@ -14,14 +14,19 @@ export async function POST(request: Request) {
 
     const trimmedUrl = url.trim();
 
-    // 1. Validasi Keamanan: Pastikan hanya domain resmi TikTok (Anti-SSRF)
+    // 1. Validasi Keamanan: Pastikan hanya domain resmi TikTok & TikTok Shop Tokopedia (Anti-SSRF)
     const allowedDomains = [
       "tiktok.com",
       "www.tiktok.com",
       "vt.tiktok.com",
       "m.tiktok.com",
       "shop.tiktok.com",
-      "seller-id.tiktok.com"
+      "seller-id.tiktok.com",
+      "tokopedia.com",
+      "www.tokopedia.com",
+      "vt.tokopedia.com",
+      "shop-id.tokopedia.com",
+      "shop.tokopedia.com"
     ];
 
     let parsedUrl: URL;
@@ -42,13 +47,54 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: "Domain tidak diizinkan. Harap masukkan tautan resmi TikTok / TikTok Shop.",
+          error: "Domain tidak diizinkan. Harap masukkan tautan resmi TikTok / TikTok Shop Tokopedia.",
         },
         { status: 403 }
       );
     }
 
-    // 2. Coba Metode 1: TikTok Official oEmbed API
+    // 2. Deteksi Cepat Khusus Tautan TikTok Shop Tokopedia (vt.tokopedia.com)
+    if (parsedUrl.hostname.includes("tokopedia.com") || parsedUrl.hostname.includes("shop.tiktok.com")) {
+      try {
+        const headRes = await fetch(trimmedUrl, {
+          method: "GET",
+          redirect: "manual",
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+          },
+        });
+
+        const location = headRes.headers.get("location");
+        if (location) {
+          const locUrl = new URL(location);
+          const ogInfoParam = locUrl.searchParams.get("og_info");
+          if (ogInfoParam) {
+            try {
+              const ogData = JSON.parse(decodeURIComponent(ogInfoParam));
+              if (ogData.title) {
+                return NextResponse.json({
+                  success: true,
+                  type: "tiktok_shop_product",
+                  title: ogData.title,
+                  image: ogData.image ? ogData.image.replace(/\\/g, "") : "",
+                  author: "TikTok Shop x Tokopedia",
+                  html: "",
+                  source: "TikTok Shop Tokopedia Affiliate",
+                  originalUrl: trimmedUrl,
+                });
+              }
+            } catch {
+              // fallback ke parser di bawah
+            }
+          }
+        }
+      } catch (tokopediaErr) {
+        console.warn("Tokopedia redirect scraper warning:", tokopediaErr);
+      }
+    }
+
+    // 3. Coba Metode 1: TikTok Official oEmbed API
     try {
       const oembedRes = await fetch(
         `https://www.tiktok.com/oembed?url=${encodeURIComponent(trimmedUrl)}`,

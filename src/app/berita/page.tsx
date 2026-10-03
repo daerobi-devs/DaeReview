@@ -12,8 +12,21 @@ export default function BeritaHubPage() {
   const [articles, setArticles] = useState<NewsArticle[]>(MOCK_NEWS);
 
   useEffect(() => {
-    // Load local dynamic articles on mount
-    setArticles(getAllArticles());
+    // 1. Initial load from local
+    const local = getAllArticles();
+    setArticles(local);
+
+    // 2. Fetch latest articles from server
+    fetch("/api/news")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.articles && Array.isArray(data.articles)) {
+          const serverSlugs = new Set(data.articles.map((a: NewsArticle) => a.slug));
+          const localOnly = local.filter((a) => a.isCustom && !serverSlugs.has(a.slug));
+          setArticles([...localOnly, ...data.articles]);
+        }
+      })
+      .catch((err) => console.warn("Gagal memuat berita server:", err));
 
     const handleNewsUpdate = () => {
       setArticles(getAllArticles());
