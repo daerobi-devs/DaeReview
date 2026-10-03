@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none">
+  <!-- Clean white rounded background for visibility in both dark and light browser tabs -->
+  <rect width="48" height="48" rx="10" fill="#ffffff"/>
+  <!-- Stylized 'D' Shape -->
+  <path d="M9 9H23C31.2843 9 38 15.7157 38 24C38 32.2843 31.2843 39 23 39H9V9Z" stroke="#0f172a" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Checkmark -->
+  <path d="M16 24.5L22.5 31L33 17" stroke="#0f172a" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Vibrant Coral Accent Dot -->
+  <circle cx="28.5" cy="27" r="3.2" fill="#f97316"/>
+</svg>
