@@ -6,7 +6,7 @@ import { buildAffiliateUrl } from "@/lib/affiliate";
 
 interface AffiliateButtonProps {
   store: "shopee" | "tokopedia" | "tiktok";
-  href: string;
+  href?: string;
   productName: string;
   productId?: string;
   sourcePage?: string;
@@ -16,7 +16,7 @@ interface AffiliateButtonProps {
 
 export default function AffiliateButton({
   store,
-  href,
+  href = "",
   productName,
   productId,
   sourcePage,

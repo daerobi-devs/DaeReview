@@ -357,25 +357,50 @@ export default async function BuyingGuidePage({ params }: PageProps) {
                       </div>
                     </div>
 
-                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
-                      <AffiliateButton
-                        store="shopee"
-                        href={pick.shopeeUrl}
-                        productName={pick.name}
-                        sourcePage={`/panduan/${guide.slug}`}
-                        className="flex-1 text-center bg-[#EE4D2D] hover:bg-[#d83d1e] text-white text-xs font-bold py-2 rounded-lg transition-colors"
-                      >
-                        Shopee
-                      </AffiliateButton>
-                      <AffiliateButton
-                        store="tokopedia"
-                        href={pick.tokopediaUrl}
-                        productName={pick.name}
-                        sourcePage={`/panduan/${guide.slug}`}
-                        className="flex-1 text-center bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 text-xs font-semibold py-2 rounded-lg transition-colors"
-                      >
-                        Tokopedia
-                      </AffiliateButton>
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2 flex-wrap">
+                      {pick.shopeeUrl?.trim() && (
+                        <AffiliateButton
+                          store="shopee"
+                          href={pick.shopeeUrl}
+                          productName={pick.name}
+                          sourcePage={`/panduan/${guide.slug}`}
+                          className="flex-1 text-center bg-[#EE4D2D] hover:bg-[#d83d1e] text-white text-xs font-bold py-2 px-2.5 rounded-lg transition-colors min-w-[70px]"
+                        >
+                          Shopee
+                        </AffiliateButton>
+                      )}
+                      {pick.tokopediaUrl?.trim() && (
+                        <AffiliateButton
+                          store="tokopedia"
+                          href={pick.tokopediaUrl}
+                          productName={pick.name}
+                          sourcePage={`/panduan/${guide.slug}`}
+                          className="flex-1 text-center bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 text-xs font-semibold py-2 px-2.5 rounded-lg transition-colors min-w-[70px]"
+                        >
+                          Tokopedia
+                        </AffiliateButton>
+                      )}
+                      {pick.tiktokUrl?.trim() && (
+                        <AffiliateButton
+                          store="tiktok"
+                          href={pick.tiktokUrl}
+                          productName={pick.name}
+                          sourcePage={`/panduan/${guide.slug}`}
+                          className="flex-1 text-center bg-slate-900 hover:bg-black text-white text-xs font-semibold py-2 px-2.5 rounded-lg transition-colors min-w-[70px]"
+                        >
+                          TikTok
+                        </AffiliateButton>
+                      )}
+                      {!pick.shopeeUrl?.trim() && !pick.tokopediaUrl?.trim() && !pick.tiktokUrl?.trim() && (
+                        <AffiliateButton
+                          store="shopee"
+                          productName={pick.name}
+                          sourcePage={`/panduan/${guide.slug}`}
+                          className="flex-1 text-center bg-[#EE4D2D] hover:bg-[#d83d1e] text-white text-xs font-bold py-2 rounded-lg transition-colors"
+                        >
+                          Cek Toko
+                        </AffiliateButton>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -526,29 +551,59 @@ export default async function BuyingGuidePage({ params }: PageProps) {
                         ))}
                       </div>
 
-                      {/* Action CTA Buttons */}
+                      {/* Action CTA Buttons — dynamically adapts to provided stores */}
                       <div className="pt-3 flex flex-wrap items-center gap-3">
-                        <AffiliateButton
-                          store="shopee"
-                          href={item.shopeeUrl}
-                          productName={item.name}
-                          sourcePage={`/panduan/${guide.slug}`}
-                          className="inline-flex items-center gap-2 bg-[#EE4D2D] hover:bg-[#d83d1e] text-white text-xs sm:text-sm font-bold py-2.5 px-5 rounded-lg transition-colors shadow-2xs"
-                        >
-                          <span>Cek Harga di Shopee</span>
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </AffiliateButton>
+                        {item.shopeeUrl?.trim() && (
+                          <AffiliateButton
+                            store="shopee"
+                            href={item.shopeeUrl}
+                            productName={item.name}
+                            sourcePage={`/panduan/${guide.slug}`}
+                            className="inline-flex items-center gap-2 bg-[#EE4D2D] hover:bg-[#d83d1e] text-white text-xs sm:text-sm font-bold py-2.5 px-5 rounded-lg transition-colors shadow-2xs"
+                          >
+                            <span>Cek Harga di Shopee</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </AffiliateButton>
+                        )}
 
-                        <AffiliateButton
-                          store="tokopedia"
-                          href={item.tokopediaUrl}
-                          productName={item.name}
-                          sourcePage={`/panduan/${guide.slug}`}
-                          className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 text-xs sm:text-sm font-semibold py-2.5 px-5 rounded-lg transition-colors"
-                        >
-                          <span>Tokopedia</span>
-                          <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-                        </AffiliateButton>
+                        {item.tokopediaUrl?.trim() && (
+                          <AffiliateButton
+                            store="tokopedia"
+                            href={item.tokopediaUrl}
+                            productName={item.name}
+                            sourcePage={`/panduan/${guide.slug}`}
+                            className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 text-xs sm:text-sm font-semibold py-2.5 px-5 rounded-lg transition-colors"
+                          >
+                            <span>Tokopedia</span>
+                            <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                          </AffiliateButton>
+                        )}
+
+                        {item.tiktokUrl?.trim() && (
+                          <AffiliateButton
+                            store="tiktok"
+                            href={item.tiktokUrl}
+                            productName={item.name}
+                            sourcePage={`/panduan/${guide.slug}`}
+                            className="inline-flex items-center gap-2 bg-slate-900 hover:bg-black text-white text-xs sm:text-sm font-semibold py-2.5 px-5 rounded-lg transition-colors shadow-2xs"
+                          >
+                            <span className="w-2 h-2 rounded-full bg-cyan-400" />
+                            <span>TikTok Shop</span>
+                            <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                          </AffiliateButton>
+                        )}
+
+                        {!item.shopeeUrl?.trim() && !item.tokopediaUrl?.trim() && !item.tiktokUrl?.trim() && (
+                          <AffiliateButton
+                            store="shopee"
+                            productName={item.name}
+                            sourcePage={`/panduan/${guide.slug}`}
+                            className="inline-flex items-center gap-2 bg-[#EE4D2D] hover:bg-[#d83d1e] text-white text-xs sm:text-sm font-bold py-2.5 px-5 rounded-lg transition-colors shadow-2xs"
+                          >
+                            <span>Cek Harga di Marketplace</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </AffiliateButton>
+                        )}
                       </div>
                     </div>
                   </div>

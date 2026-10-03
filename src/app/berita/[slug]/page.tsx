@@ -769,31 +769,34 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                       <span className="text-xl font-black text-slate-900">{relatedProduct.price}</span>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <AffiliateButton
-                        store="shopee"
-                        href={relatedProduct.shopeeUrl}
-                        productName={relatedProduct.name}
-                        productId={relatedProduct.id}
-                        sourcePage={`/berita/${article.slug}`}
-                        className="inline-flex items-center gap-1.5 bg-[#EE4D2D] hover:bg-[#D73211] text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-xs transition-colors"
-                      >
-                        <span>Cek di Shopee</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </AffiliateButton>
-                      <AffiliateButton
-                        store="tokopedia"
-                        href={relatedProduct.tokopediaUrl}
-                        productName={relatedProduct.name}
-                        productId={relatedProduct.id}
-                        sourcePage={`/berita/${article.slug}`}
-                        className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 text-xs font-semibold py-2.5 px-4 rounded-xl shadow-xs transition-colors"
-                      >
-                        <span>Tokopedia</span>
-                        <ExternalLink className="w-3 h-3 text-slate-400" />
-                      </AffiliateButton>
-
-                      {relatedProduct.tiktokUrl && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {relatedProduct.shopeeUrl?.trim() && (
+                        <AffiliateButton
+                          store="shopee"
+                          href={relatedProduct.shopeeUrl}
+                          productName={relatedProduct.name}
+                          productId={relatedProduct.id}
+                          sourcePage={`/berita/${article.slug}`}
+                          className="inline-flex items-center gap-1.5 bg-[#EE4D2D] hover:bg-[#D73211] text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-xs transition-colors"
+                        >
+                          <span>Cek di Shopee</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </AffiliateButton>
+                      )}
+                      {relatedProduct.tokopediaUrl?.trim() && (
+                        <AffiliateButton
+                          store="tokopedia"
+                          href={relatedProduct.tokopediaUrl}
+                          productName={relatedProduct.name}
+                          productId={relatedProduct.id}
+                          sourcePage={`/berita/${article.slug}`}
+                          className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 text-xs font-semibold py-2.5 px-4 rounded-xl shadow-xs transition-colors"
+                        >
+                          <span>Tokopedia</span>
+                          <ExternalLink className="w-3 h-3 text-slate-400" />
+                        </AffiliateButton>
+                      )}
+                      {relatedProduct.tiktokUrl?.trim() && (
                         <AffiliateButton
                           store="tiktok"
                           href={relatedProduct.tiktokUrl}
@@ -807,10 +810,51 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                           <ExternalLink className="w-3 h-3 text-slate-400" />
                         </AffiliateButton>
                       )}
+                      {!relatedProduct.shopeeUrl?.trim() && !relatedProduct.tokopediaUrl?.trim() && !relatedProduct.tiktokUrl?.trim() && (
+                        <AffiliateButton
+                          store="shopee"
+                          productName={relatedProduct.name}
+                          productId={relatedProduct.id}
+                          sourcePage={`/berita/${article.slug}`}
+                          className="inline-flex items-center gap-1.5 bg-[#EE4D2D] hover:bg-[#D73211] text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-xs transition-colors"
+                        >
+                          <span>Cari di Marketplace</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </AffiliateButton>
+                      )}
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Fallback Direct Article TikTok Shop Callout if no related product is linked */}
+          {!relatedProduct && article.tiktokUrl?.trim() && (
+            <div className="my-10 p-5 rounded-2xl bg-slate-900 text-white flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center shrink-0">
+                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
+                </div>
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-cyan-400">
+                    PRODUK TERKAIT DI TIKTOK SHOP
+                  </div>
+                  <div className="text-sm font-semibold text-slate-200">
+                    Beli atau lihat produk resmi yang dibahas dalam kabar ini langsung di TikTok Shop
+                  </div>
+                </div>
+              </div>
+              <AffiliateButton
+                store="tiktok"
+                href={article.tiktokUrl}
+                productName={article.title}
+                sourcePage={`/berita/${article.slug}`}
+                className="inline-flex items-center gap-2 bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs sm:text-sm py-2.5 px-5 rounded-xl transition-colors shrink-0 shadow-xs"
+              >
+                <span>Beli di TikTok Shop</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </AffiliateButton>
             </div>
           )}
 

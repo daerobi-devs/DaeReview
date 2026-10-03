@@ -87,19 +87,62 @@ export default function ComparisonTable({ products }: ComparisonTableProps) {
                     <span className="line-clamp-2">{item.pros[0]}</span>
                   </td>
 
-                  {/* CTA */}
+                  {/* CTA — Dynamically adapts to available store URLs */}
                   <td className="py-4 px-6 text-center">
-                    <AffiliateButton
-                      store="shopee"
-                      href={item.shopeeUrl}
-                      productName={item.name}
-                      productId={item.id}
-                      sourcePage="/#perbandingan"
-                      className="inline-flex items-center gap-1.5 bg-[#EE4D2D] hover:bg-[#D73211] text-white text-xs font-bold py-2 px-3.5 rounded-lg shadow-2xs transition-all whitespace-nowrap cursor-pointer"
-                    >
-                      <span>Cek Shopee</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </AffiliateButton>
+                    <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                      {item.shopeeUrl?.trim() && (
+                        <AffiliateButton
+                          store="shopee"
+                          href={item.shopeeUrl}
+                          productName={item.name}
+                          productId={item.id}
+                          sourcePage="/#perbandingan"
+                          className="inline-flex items-center gap-1 bg-[#EE4D2D] hover:bg-[#D73211] text-white text-xs font-bold py-1.5 px-3 rounded-lg shadow-2xs transition-all whitespace-nowrap cursor-pointer"
+                        >
+                          <span>Shopee</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </AffiliateButton>
+                      )}
+                      {item.tokopediaUrl?.trim() && (
+                        <AffiliateButton
+                          store="tokopedia"
+                          href={item.tokopediaUrl}
+                          productName={item.name}
+                          productId={item.id}
+                          sourcePage="/#perbandingan"
+                          className="inline-flex items-center gap-1 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 text-xs font-semibold py-1.5 px-3 rounded-lg transition-all whitespace-nowrap cursor-pointer"
+                        >
+                          <span>Tokopedia</span>
+                          <ExternalLink className="w-3 h-3 text-slate-400" />
+                        </AffiliateButton>
+                      )}
+                      {item.tiktokUrl?.trim() && (
+                        <AffiliateButton
+                          store="tiktok"
+                          href={item.tiktokUrl}
+                          productName={item.name}
+                          productId={item.id}
+                          sourcePage="/#perbandingan"
+                          className="inline-flex items-center gap-1 bg-slate-900 hover:bg-black text-white text-xs font-semibold py-1.5 px-3 rounded-lg transition-all whitespace-nowrap cursor-pointer"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                          <span>TikTok</span>
+                          <ExternalLink className="w-3 h-3 text-slate-400" />
+                        </AffiliateButton>
+                      )}
+                      {!item.shopeeUrl?.trim() && !item.tokopediaUrl?.trim() && !item.tiktokUrl?.trim() && (
+                        <AffiliateButton
+                          store="shopee"
+                          productName={item.name}
+                          productId={item.id}
+                          sourcePage="/#perbandingan"
+                          className="inline-flex items-center gap-1 bg-[#EE4D2D] hover:bg-[#D73211] text-white text-xs font-bold py-1.5 px-3 rounded-lg shadow-2xs transition-all whitespace-nowrap cursor-pointer"
+                        >
+                          <span>Cek Toko</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </AffiliateButton>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

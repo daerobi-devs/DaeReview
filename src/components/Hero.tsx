@@ -108,18 +108,62 @@ export default function Hero({ activeCategory, onSelectCategory }: HeroProps) {
                   <span className="text-2xl font-black text-slate-900">{featuredProduct.price}</span>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <AffiliateButton
-                    store="shopee"
-                    href={featuredProduct.shopeeUrl}
-                    productName={featuredProduct.name}
-                    productId={featuredProduct.id}
-                    sourcePage="/"
-                    className="inline-flex items-center gap-2 bg-[#EE4D2D] hover:bg-[#D73211] text-white text-xs sm:text-sm font-bold py-2.5 px-5 rounded-xl shadow-xs transition-colors cursor-pointer"
-                  >
-                    <span>Cek di Shopee</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </AffiliateButton>
+                <div className="flex items-center gap-3 flex-wrap">
+                  {featuredProduct.shopeeUrl?.trim() && (
+                    <AffiliateButton
+                      store="shopee"
+                      href={featuredProduct.shopeeUrl}
+                      productName={featuredProduct.name}
+                      productId={featuredProduct.id}
+                      sourcePage="/"
+                      className="inline-flex items-center gap-2 bg-[#EE4D2D] hover:bg-[#D73211] text-white text-xs sm:text-sm font-bold py-2.5 px-5 rounded-xl shadow-xs transition-colors cursor-pointer"
+                    >
+                      <span>Cek di Shopee</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </AffiliateButton>
+                  )}
+
+                  {featuredProduct.tokopediaUrl?.trim() && (
+                    <AffiliateButton
+                      store="tokopedia"
+                      href={featuredProduct.tokopediaUrl}
+                      productName={featuredProduct.name}
+                      productId={featuredProduct.id}
+                      sourcePage="/"
+                      className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 text-xs sm:text-sm font-semibold py-2.5 px-4 rounded-xl shadow-xs transition-colors cursor-pointer"
+                    >
+                      <span>Tokopedia</span>
+                      <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                    </AffiliateButton>
+                  )}
+
+                  {featuredProduct.tiktokUrl?.trim() && (
+                    <AffiliateButton
+                      store="tiktok"
+                      href={featuredProduct.tiktokUrl}
+                      productName={featuredProduct.name}
+                      productId={featuredProduct.id}
+                      sourcePage="/"
+                      className="inline-flex items-center gap-2 bg-slate-900 hover:bg-black text-white text-xs sm:text-sm font-semibold py-2.5 px-4 rounded-xl shadow-xs transition-colors cursor-pointer"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                      <span>TikTok Shop</span>
+                      <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                    </AffiliateButton>
+                  )}
+
+                  {!featuredProduct.shopeeUrl?.trim() && !featuredProduct.tokopediaUrl?.trim() && !featuredProduct.tiktokUrl?.trim() && (
+                    <AffiliateButton
+                      store="shopee"
+                      productName={featuredProduct.name}
+                      productId={featuredProduct.id}
+                      sourcePage="/"
+                      className="inline-flex items-center gap-2 bg-[#EE4D2D] hover:bg-[#D73211] text-white text-xs sm:text-sm font-bold py-2.5 px-5 rounded-xl shadow-xs transition-colors cursor-pointer"
+                    >
+                      <span>Cek Toko</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </AffiliateButton>
+                  )}
 
                   <Link
                     href="#rekomendasi"

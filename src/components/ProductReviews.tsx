@@ -176,33 +176,37 @@ export default function ProductReviews({
                     ))}
                   </div>
 
-                  {/* Clean, Proportionate Action Buttons */}
+                  {/* Clean, Proportionate Action Buttons — dynamically adapts to provided stores */}
                   <div className="pt-2 flex flex-wrap items-center gap-3">
-                    <AffiliateButton
-                      store="shopee"
-                      href={item.shopeeUrl}
-                      productName={item.name}
-                      productId={item.id}
-                      sourcePage="/"
-                      className="inline-flex items-center gap-2 bg-[#EE4D2D] hover:bg-[#d83d1e] text-white text-xs sm:text-sm font-bold py-2.5 px-5 rounded-lg transition-colors shadow-2xs"
-                    >
-                      <span>Cek Harga di Shopee</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </AffiliateButton>
+                    {item.shopeeUrl?.trim() && (
+                      <AffiliateButton
+                        store="shopee"
+                        href={item.shopeeUrl}
+                        productName={item.name}
+                        productId={item.id}
+                        sourcePage="/"
+                        className="inline-flex items-center gap-2 bg-[#EE4D2D] hover:bg-[#d83d1e] text-white text-xs sm:text-sm font-bold py-2.5 px-5 rounded-lg transition-colors shadow-2xs"
+                      >
+                        <span>Cek Harga di Shopee</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </AffiliateButton>
+                    )}
 
-                    <AffiliateButton
-                      store="tokopedia"
-                      href={item.tokopediaUrl}
-                      productName={item.name}
-                      productId={item.id}
-                      sourcePage="/"
-                      className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 text-xs sm:text-sm font-semibold py-2.5 px-5 rounded-lg transition-colors"
-                    >
-                      <span>Tokopedia</span>
-                      <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-                    </AffiliateButton>
+                    {item.tokopediaUrl?.trim() && (
+                      <AffiliateButton
+                        store="tokopedia"
+                        href={item.tokopediaUrl}
+                        productName={item.name}
+                        productId={item.id}
+                        sourcePage="/"
+                        className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 text-xs sm:text-sm font-semibold py-2.5 px-5 rounded-lg transition-colors"
+                      >
+                        <span>Tokopedia</span>
+                        <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                      </AffiliateButton>
+                    )}
 
-                    {item.tiktokUrl && (
+                    {item.tiktokUrl?.trim() && (
                       <AffiliateButton
                         store="tiktok"
                         href={item.tiktokUrl}
@@ -214,6 +218,19 @@ export default function ProductReviews({
                         <span className="w-2 h-2 rounded-full bg-cyan-400" />
                         <span>TikTok Shop</span>
                         <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                      </AffiliateButton>
+                    )}
+
+                    {!item.shopeeUrl?.trim() && !item.tokopediaUrl?.trim() && !item.tiktokUrl?.trim() && (
+                      <AffiliateButton
+                        store="shopee"
+                        productName={item.name}
+                        productId={item.id}
+                        sourcePage="/"
+                        className="inline-flex items-center gap-2 bg-[#EE4D2D] hover:bg-[#d83d1e] text-white text-xs sm:text-sm font-bold py-2.5 px-5 rounded-lg transition-colors shadow-2xs"
+                      >
+                        <span>Cari di Marketplace</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
                       </AffiliateButton>
                     )}
                   </div>

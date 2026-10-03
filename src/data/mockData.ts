@@ -501,8 +501,9 @@ export interface BuyingGuideProduct {
   pros: string[];
   cons: string[];
   specs: Record<string, string>;
-  shopeeUrl: string;
-  tokopediaUrl: string;
+  shopeeUrl?: string;
+  tokopediaUrl?: string;
+  tiktokUrl?: string;
   verifiedOfficial: boolean;
 }
 
@@ -558,8 +559,9 @@ export interface BuyingGuide {
     badge: string;
     name: string;
     price: string;
-    shopeeUrl: string;
-    tokopediaUrl: string;
+    shopeeUrl?: string;
+    tokopediaUrl?: string;
+    tiktokUrl?: string;
     image: string;
   }[];
   products: BuyingGuideProduct[];

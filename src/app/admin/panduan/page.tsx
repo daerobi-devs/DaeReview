@@ -283,6 +283,7 @@ export default function AdminPanduanPage() {
       specs: p.specs,
       shopeeUrl: p.shopeeUrl,
       tokopediaUrl: p.tokopediaUrl,
+      tiktokUrl: p.tiktokUrl,
       verifiedOfficial: p.verifiedOfficial,
     }));
 
@@ -293,6 +294,7 @@ export default function AdminPanduanPage() {
       price: p.price,
       shopeeUrl: p.shopeeUrl,
       tokopediaUrl: p.tokopediaUrl,
+      tiktokUrl: p.tiktokUrl,
       image: p.image,
     }));
 
