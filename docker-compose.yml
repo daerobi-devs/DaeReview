@@ -9,6 +9,7 @@ services:
         NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://daereview.daeroom.my.id}
+        NEXT_PUBLIC_GSC_VERIFICATION: ${NEXT_PUBLIC_GSC_VERIFICATION:-_5BNDxoJkGkVL-YfDLstufxHtU9pfpI_YYVncEmX6H4}
     container_name: daereview
     restart: unless-stopped
     ports:
@@ -23,6 +24,7 @@ services:
       - ADMIN_SALT_SECRET=${ADMIN_SALT_SECRET}
       - DIFY_WEBHOOK_SECRET=${DIFY_WEBHOOK_SECRET}
       - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-https://daereview.daeroom.my.id}
+      - NEXT_PUBLIC_GSC_VERIFICATION=${NEXT_PUBLIC_GSC_VERIFICATION:-_5BNDxoJkGkVL-YfDLstufxHtU9pfpI_YYVncEmX6H4}
     volumes:
       - daereview_data:/app/src/data
 

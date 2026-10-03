@@ -52,6 +52,9 @@ export const metadata: Metadata = {
     description:
       "Ulasan jujur produk terlaris dan kabar tren teknologi harian di Indonesia.",
   },
+  verification: {
+    google: process.env.NEXT_PUBLIC_GSC_VERIFICATION || "_5BNDxoJkGkVL-YfDLstufxHtU9pfpI_YYVncEmX6H4",
+  },
 };
 
 export default function RootLayout({
