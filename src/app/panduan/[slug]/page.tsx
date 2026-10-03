@@ -18,8 +18,12 @@ import {
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import SocialShareBar from "@/components/SocialShareBar";
-import { BUYING_GUIDES } from "@/data/mockData";
+import { BUYING_GUIDES, BuyingGuide } from "@/data/mockData";
 import type { Metadata } from "next";
+import fs from "fs";
+import path from "path";
+import { supabaseAdmin } from "@/lib/supabase";
+import AffiliateButton from "@/components/AffiliateButton";
 
 interface PageProps {
   params: Promise<{
@@ -27,9 +31,75 @@ interface PageProps {
   }>;
 }
 
+async function getGuideServer(slug: string): Promise<BuyingGuide | undefined> {
+  // 1. Cek dari file storage persisten server
+  try {
+    const dataFile = path.join(process.cwd(), "src", "data", "custom_guides.json");
+    if (fs.existsSync(dataFile)) {
+      const raw = fs.readFileSync(dataFile, "utf-8");
+      const custom: BuyingGuide[] = JSON.parse(raw);
+      const match = custom.find((g) => g.slug === slug);
+      if (match) return match;
+    }
+  } catch (e) {
+    // fallback
+  }
+
+  // 2. Cek dari Supabase Database (public.guides)
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("guides")
+      .select("*")
+      .eq("slug", slug)
+      .maybeSingle();
+
+    if (!error && data) {
+      return {
+        id: data.id,
+        slug: data.slug,
+        title: data.title,
+        subtitle: data.subtitle || "",
+        category: data.category || "gadget",
+        categoryName: data.category_name || "Gadget & Setup",
+        updatedAt: data.updated_at
+          ? new Intl.DateTimeFormat("id-ID", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            }).format(new Date(data.updated_at))
+          : "Terbaru",
+        readTime: data.read_time || "6 menit",
+        author: data.author || {
+          name: "Tim Redaksi DaeReview",
+          role: "Lead Hardware & Gadget Editor",
+          avatar:
+            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80",
+        },
+        coverImage:
+          data.cover_image ||
+          "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=80",
+        excerpt: data.excerpt || data.subtitle || "",
+        isFeatured: Boolean(data.is_featured),
+        itemCount:
+          Number(data.item_count) ||
+          (Array.isArray(data.products) ? data.products.length : 0),
+        intro: Array.isArray(data.intro) ? data.intro : [data.subtitle || ""],
+        quickPicks: Array.isArray(data.quick_picks) ? data.quick_picks : [],
+        products: Array.isArray(data.products) ? data.products : [],
+        buyingAdvice: Array.isArray(data.buying_advice) ? data.buying_advice : [],
+        faqs: Array.isArray(data.faqs) ? data.faqs : [],
+      };
+    }
+  } catch (dbErr) {
+    // fallback
+  }
+
+  return BUYING_GUIDES.find((g) => g.slug === slug);
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const guide = BUYING_GUIDES.find((g) => g.slug === slug);
+  const guide = await getGuideServer(slug);
 
   if (!guide) {
     return {
@@ -73,7 +143,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function BuyingGuidePage({ params }: PageProps) {
   const { slug } = await params;
-  const guide = BUYING_GUIDES.find((g) => g.slug === slug);
+  const guide = await getGuideServer(slug);
 
   if (!guide) {
     notFound();
@@ -287,22 +357,24 @@ export default async function BuyingGuidePage({ params }: PageProps) {
                     </div>
 
                     <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
-                      <a
+                      <AffiliateButton
+                        store="shopee"
                         href={pick.shopeeUrl}
-                        target="_blank"
-                        rel="noopener noreferrer nofollow"
+                        productName={pick.name}
+                        sourcePage={`/panduan/${guide.slug}`}
                         className="flex-1 text-center bg-[#EE4D2D] hover:bg-[#d83d1e] text-white text-xs font-bold py-2 rounded-lg transition-colors"
                       >
                         Shopee
-                      </a>
-                      <a
+                      </AffiliateButton>
+                      <AffiliateButton
+                        store="tokopedia"
                         href={pick.tokopediaUrl}
-                        target="_blank"
-                        rel="noopener noreferrer nofollow"
+                        productName={pick.name}
+                        sourcePage={`/panduan/${guide.slug}`}
                         className="flex-1 text-center bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 text-xs font-semibold py-2 rounded-lg transition-colors"
                       >
                         Tokopedia
-                      </a>
+                      </AffiliateButton>
                     </div>
                   </div>
                 ))}
@@ -455,25 +527,27 @@ export default async function BuyingGuidePage({ params }: PageProps) {
 
                       {/* Action CTA Buttons */}
                       <div className="pt-3 flex flex-wrap items-center gap-3">
-                        <a
+                        <AffiliateButton
+                          store="shopee"
                           href={item.shopeeUrl}
-                          target="_blank"
-                          rel="noopener noreferrer nofollow"
+                          productName={item.name}
+                          sourcePage={`/panduan/${guide.slug}`}
                           className="inline-flex items-center gap-2 bg-[#EE4D2D] hover:bg-[#d83d1e] text-white text-xs sm:text-sm font-bold py-2.5 px-5 rounded-lg transition-colors shadow-2xs"
                         >
                           <span>Cek Harga di Shopee</span>
                           <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
+                        </AffiliateButton>
 
-                        <a
+                        <AffiliateButton
+                          store="tokopedia"
                           href={item.tokopediaUrl}
-                          target="_blank"
-                          rel="noopener noreferrer nofollow"
+                          productName={item.name}
+                          sourcePage={`/panduan/${guide.slug}`}
                           className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 text-xs sm:text-sm font-semibold py-2.5 px-5 rounded-lg transition-colors"
                         >
                           <span>Tokopedia</span>
                           <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-                        </a>
+                        </AffiliateButton>
                       </div>
                     </div>
                   </div>

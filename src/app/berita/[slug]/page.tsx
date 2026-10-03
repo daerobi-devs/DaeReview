@@ -1,7 +1,7 @@
 import React from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { MOCK_NEWS, MOCK_PRODUCTS } from "@/data/mockData";
+import { MOCK_NEWS, MOCK_PRODUCTS, NewsArticle, Product } from "@/data/mockData";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import SocialShareBar from "@/components/SocialShareBar";
@@ -19,8 +19,8 @@ import type { Metadata } from "next";
 
 import fs from "fs";
 import path from "path";
-import { NewsArticle } from "@/data/mockData";
 import { supabaseAdmin } from "@/lib/supabase";
+import AffiliateButton from "@/components/AffiliateButton";
 
 interface ArticlePageProps {
   params: Promise<{ slug: string }>;
@@ -90,6 +90,7 @@ function formatInlineMarkdown(text: string): string {
   return text
     .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-slate-900">$1</strong>')
     .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
+    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer nofollow" class="text-blue-700 underline font-semibold hover:text-blue-900">$1</a>')
     .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 text-sm font-mono">$1</code>');
 }
 
@@ -106,6 +107,61 @@ function getOtherArticlesServer(currentId: string): NewsArticle[] {
     // fallback
   }
   return MOCK_NEWS.filter((item) => item.id !== currentId).slice(0, 3);
+}
+
+async function getProductServer(id: string): Promise<Product | undefined> {
+  // 1. Cek file storage persisten server
+  try {
+    const prodFile = path.join(process.cwd(), "src", "data", "custom_products.json");
+    if (fs.existsSync(prodFile)) {
+      const raw = fs.readFileSync(prodFile, "utf-8");
+      const custom: Product[] = JSON.parse(raw);
+      const match = custom.find((p) => p.id === id);
+      if (match) return match;
+    }
+  } catch (e) {
+    // fallback
+  }
+
+  // 2. Cek Supabase Database (public.products)
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("products")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (!error && data) {
+      return {
+        id: data.id,
+        rank: data.rank || 1,
+        badge: data.badge || "PILIHAN UTAMA",
+        name: data.name,
+        tagline: data.tagline,
+        category: data.category,
+        rating: Number(data.rating) || 4.8,
+        reviewCount: data.review_count || 100,
+        price: data.price,
+        originalPrice: data.original_price || undefined,
+        discount: data.discount || undefined,
+        image: data.image,
+        pros: Array.isArray(data.pros) ? data.pros : ["Material kokoh dan awet"],
+        cons: Array.isArray(data.cons) ? data.cons : ["Stok promo terbatas"],
+        specs: typeof data.specs === "object" && data.specs !== null ? data.specs : { Garansi: "1 Tahun Resmi" },
+        shopeeUrl: data.shopee_url || "",
+        tokopediaUrl: data.tokopedia_url || "",
+        tiktokUrl: data.tiktok_url || "",
+        verifiedOfficial: data.verified_official ?? true,
+        verdict: data.verdict || "Produk teruji dengan rasio nilai-ke-harga tinggi.",
+        isCustom: true,
+      };
+    }
+  } catch (dbErr) {
+    // fallback
+  }
+
+  // 3. Fallback ke MOCK_PRODUCTS
+  return MOCK_PRODUCTS.find((p) => p.id === id);
 }
 
 export async function generateMetadata({ params }: ArticlePageProps): Promise<Metadata> {
@@ -160,9 +216,9 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     notFound();
   }
 
-  // Find related product if linked
+  // Find related product if linked (supports custom & Supabase products)
   const relatedProduct = article.relatedProductId
-    ? MOCK_PRODUCTS.find((p) => p.id === article.relatedProductId)
+    ? await getProductServer(article.relatedProductId)
     : null;
 
   // Other news recommendations
@@ -322,6 +378,47 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                   </h2>
                 );
               }
+              if (trimmed.startsWith("> ")) {
+                return (
+                  <blockquote
+                    key={index}
+                    className="p-4 my-5 bg-amber-50/70 border-l-4 border-amber-500 rounded-r-2xl text-slate-800 text-sm sm:text-base leading-relaxed font-medium shadow-2xs"
+                    dangerouslySetInnerHTML={{ __html: formatInlineMarkdown(trimmed.replace(/^>\s+/, "")) }}
+                  />
+                );
+              }
+              if (trimmed.startsWith("|") || (trimmed.includes("|") && trimmed.includes("---"))) {
+                const rows = trimmed.split("\n").map((r) => r.trim()).filter((r) => r.startsWith("|") && !r.includes("---"));
+                if (rows.length > 0) {
+                  const headerCols = rows[0].split("|").map((c) => c.trim()).filter(Boolean);
+                  const dataRows = rows.slice(1).map((r) => r.split("|").map((c) => c.trim()).filter(Boolean));
+
+                  return (
+                    <div key={index} className="my-6 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-xs">
+                      <table className="w-full text-left text-xs sm:text-sm">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-slate-900 font-extrabold">
+                          <tr>
+                            {headerCols.map((th, hIdx) => (
+                              <th key={hIdx} className="px-4 py-3 font-bold text-blue-950">
+                                {th}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-slate-700">
+                          {dataRows.map((row, rIdx) => (
+                            <tr key={rIdx} className="hover:bg-slate-50/60 transition-colors">
+                              {row.map((cell, cIdx) => (
+                                <td key={cIdx} className="px-4 py-3" dangerouslySetInnerHTML={{ __html: formatInlineMarkdown(cell) }} />
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                }
+              }
               if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
                 return (
                   <div key={index} className="flex items-start gap-2.5 my-2 ml-2">
@@ -391,36 +488,42 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <a
+                      <AffiliateButton
+                        store="shopee"
                         href={relatedProduct.shopeeUrl}
-                        target="_blank"
-                        rel="noopener noreferrer nofollow"
+                        productName={relatedProduct.name}
+                        productId={relatedProduct.id}
+                        sourcePage={`/berita/${article.slug}`}
                         className="inline-flex items-center gap-1.5 bg-[#EE4D2D] hover:bg-[#D73211] text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-xs transition-colors"
                       >
                         <span>Cek di Shopee</span>
                         <ExternalLink className="w-3 h-3" />
-                      </a>
-                      <a
+                      </AffiliateButton>
+                      <AffiliateButton
+                        store="tokopedia"
                         href={relatedProduct.tokopediaUrl}
-                        target="_blank"
-                        rel="noopener noreferrer nofollow"
+                        productName={relatedProduct.name}
+                        productId={relatedProduct.id}
+                        sourcePage={`/berita/${article.slug}`}
                         className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 text-xs font-semibold py-2.5 px-4 rounded-xl shadow-xs transition-colors"
                       >
                         <span>Tokopedia</span>
                         <ExternalLink className="w-3 h-3 text-slate-400" />
-                      </a>
+                      </AffiliateButton>
 
                       {relatedProduct.tiktokUrl && (
-                        <a
+                        <AffiliateButton
+                          store="tiktok"
                           href={relatedProduct.tiktokUrl}
-                          target="_blank"
-                          rel="noopener noreferrer nofollow"
+                          productName={relatedProduct.name}
+                          productId={relatedProduct.id}
+                          sourcePage={`/berita/${article.slug}`}
                           className="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-black text-white text-xs font-semibold py-2.5 px-4 rounded-xl shadow-xs transition-colors"
                         >
                           <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
                           <span>TikTok Shop</span>
                           <ExternalLink className="w-3 h-3 text-slate-400" />
-                        </a>
+                        </AffiliateButton>
                       )}
                     </div>
                   </div>

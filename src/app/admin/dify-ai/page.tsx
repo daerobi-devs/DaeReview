@@ -25,20 +25,17 @@ import {
 import {
   DifyDraft,
   getDifyDrafts,
-  addDifyDraft,
-  updateDraftStatus,
-  deleteDifyDraft
+  deleteDifyDraft,
+  clearAllDifyDrafts,
+  publishDraftToLive
 } from "@/lib/dify";
+import { slugify } from "@/lib/dynamicNews";
 
 export default function AdminDifyAIPage() {
   const [drafts, setDrafts] = useState<DifyDraft[]>([]);
   const [difyServerUrl] = useState("https://dify.daeroom.my.id");
   const [apiKey, setApiKey] = useState("");
-  const [generationType, setGenerationType] = useState<"FAKTA_MITOS" | "PANDUAN_BELANJA" | "BERITA_TREN" | "TOP_PICKS">("FAKTA_MITOS");
-  const [topic, setTopic] = useState("");
-  const [productLinksText, setProductLinksText] = useState("");
-  const [category, setCategory] = useState("Fakta vs Mitos");
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<"IDLE" | "CHECKING" | "CONNECTED">("CONNECTED");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [copiedPrompt, setCopiedPrompt] = useState(false);
@@ -108,101 +105,23 @@ TUGAS & STANDAR REDAKSI UTAMA:
     }, 1200);
   };
 
-  const handleGenerateAI = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!topic.trim()) return;
+  const handlePublish = async (id: string, title: string) => {
+    const draft = drafts.find((d) => d.id === id);
+    if (!draft) return;
 
-    setIsGenerating(true);
+    setPublishingId(id);
+    const result = await publishDraftToLive(draft);
+    setPublishingId(null);
 
-    setTimeout(() => {
-      let newTitle = topic.trim();
-      let summaryText = "";
-      let paragraphs: string[] = [];
-      let recs: any[] | undefined = undefined;
-      let draftType: "FAKTA_MITOS" | "PANDUAN_BELANJA" | "BERITA_TREN" = "BERITA_TREN";
-
-      if (generationType === "FAKTA_MITOS") {
-        draftType = "FAKTA_MITOS";
-        newTitle = topic.toLowerCase().startsWith("fakta") ? topic : `Fakta vs Mitos: ${topic}`;
-        summaryText = `Kajian riset teknis dan pengujian data empiris seputar ${topic}. Membongkar salah kaprah umum di masyarakat.`;
-        paragraphs = [
-          `Isu seputar ${topic} telah lama beredar dan seringkali menimbulkan kebingungan bagi konsumen di Indonesia. Banyak orang berasumsi tanpa memeriksa fakta teknis yang sebenarnya.`,
-          `Setelah menguji komponen dan merujuk pada standar manufaktur resmi, kami menemukan bahwa klaim populer tersebut tidak sepenuhnya tepat. Ada mekanisme perlindungan modern yang sudah disematkan oleh produsen.`,
-          `Vonis Redaksi DaeReview: Pembaca disarankan untuk lebih bijak membedakan antara batasan hardware aktual dengan rumor tak berdasar. Selalu periksa sertifikasi resmi sebelum membeli.`
-        ];
-      } else if (generationType === "PANDUAN_BELANJA") {
-        draftType = "PANDUAN_BELANJA";
-        newTitle = `Panduan Belanja & Rekomendasi Teruji: ${topic} Terbaik 2026`;
-        summaryText = `Riset perbandingan harga, spesifikasi teknis, dan verifikasi ulasan pembeli riil di Shopee dan Tokopedia untuk ${topic}.`;
-        paragraphs = [
-          `Memilih ${topic} dengan rasio value-for-money terbaik membutuhkan ketelitian ekstra di tengah membanjirnya produk baru di e-commerce.`,
-          `Formula 4 lapis kami menganalisis keawetan material, garansi distributor resmi, serta rating keaslian pembeli untuk menyaring pilihan paling worth-it untuk Anda.`,
-          `Kesimpulan kurasi: Jangan tergoda harga murah yang mengorbankan kualitas keselamatan dan kenyamanan pemakaian jangka panjang.`
-        ];
-      } else if (generationType === "TOP_PICKS") {
-        draftType = "PANDUAN_BELANJA";
-        newTitle = `5 Rekomendasi ${topic} Terbaik 2026: Teruji Awet & Nilai Tertinggi`;
-        summaryText = `Kurasi komparasi produk mendalam untuk ${topic}. Menyaring pilihan terbaik dari marketplace berdasarkan efisiensi biaya dan daya tahan pemakaian.`;
-        paragraphs = [
-          `Mencari produk ${topic} yang benar-benar memuaskan membutuhkan perbandingan spesifikasi yang teliti. Redaksi DaeReview mengumpulkan produk unggulan dan menguji performanya.`,
-          `Dari analisis data pengujian laboratorium dan ulasan pembeli terverifikasi, kami menyusun urutan rekomendasi berdasarkan ketahanan komponen, garansi resmi, dan rasio value-for-money.`,
-          `Vonis akhir: Prioritaskan produk dengan perlindungan purna jual resmi dan reputasi toko yang terpercaya.`
-        ];
-        recs = [
-          {
-            name: `${topic} Pilihan Utama Redaksi`,
-            price: "Rp 249.000",
-            specs: "Spesifikasi Unggulan, Garansi Resmi 1 Tahun",
-            pros: "Material kokoh, performa konsisten, dan akurasi tinggi",
-            cons: "Harga sedikit di atas rata-rata pasar",
-            shopeeUrl: "https://shopee.co.id",
-            tokopediaUrl: "https://tokopedia.com",
-            tiktokUrl: productLinksText ? productLinksText : "https://shop.tiktok.com",
-          },
-          {
-            name: `${topic} Pilihan Budget Paling Worth-It`,
-            price: "Rp 149.000",
-            specs: "Desain Ergonomis, Hemat Daya",
-            pros: "Harga terjangkau dengan fungsi utama andal",
-            cons: "Aksesoris bawaan minimalis",
-            shopeeUrl: "https://shopee.co.id",
-            tokopediaUrl: "https://tokopedia.com",
-            tiktokUrl: "https://shop.tiktok.com",
-          }
-        ];
-      } else {
-        draftType = "BERITA_TREN";
-        newTitle = `Tren Belanja & Wawasan Pasar: ${topic}`;
-        summaryText = `Analisis pergerakan harga diskon, kupon marketplace, dan strategi cerdas mengamankan penawaran terbaik.`;
-        paragraphs = [
-          `Perkembangan pasar teknologi kuartal ini menunjukkan perubahan signifikan dalam preferensi belanja konsumen cerdas di Indonesia.`,
-          `Data riil pergerakan diskon memperlihatkan bahwa belanja saat momen tanggal kembar memberikan efisiensi anggaran hingga 30% jika dilakukan dengan strategi yang tepat.`
-        ];
-      }
-
-      addDifyDraft({
-        type: draftType,
-        title: newTitle,
-        category,
-        summary: summaryText,
-        content: paragraphs,
-        productRecommendations: recs,
-      });
-
+    if (result.success) {
       setDrafts(getDifyDrafts());
-      setIsGenerating(false);
-      setTopic("");
-      setProductLinksText("");
-      setToastMessage(`Draf baru "${newTitle.substring(0, 35)}..." berhasil dibuat oleh Dify AI!`);
-      setTimeout(() => setToastMessage(null), 3500);
-    }, 2000);
-  };
-
-  const handlePublish = (id: string, title: string) => {
-    const updated = updateDraftStatus(id, "PUBLISHED");
-    setDrafts(updated);
-    setToastMessage(`Draft "${title.substring(0, 30)}..." berhasil dipublikasikan!`);
-    setTimeout(() => setToastMessage(null), 3500);
+      setToastMessage(
+        `Artikel "${title.substring(0, 30)}..." berhasil dipublikasikan live ke Supabase & Portal!`
+      );
+      setTimeout(() => setToastMessage(null), 4000);
+    } else {
+      alert(`Gagal mempublikasikan: ${result.error}`);
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -210,6 +129,15 @@ TUGAS & STANDAR REDAKSI UTAMA:
       const updated = deleteDifyDraft(id);
       setDrafts(updated);
       setToastMessage("Draft berhasil dihapus.");
+      setTimeout(() => setToastMessage(null), 3000);
+    }
+  };
+
+  const handleClearAll = () => {
+    if (confirm("Bersihkan semua draf dari daftar?")) {
+      clearAllDifyDrafts();
+      setDrafts([]);
+      setToastMessage("Semua draf berhasil dibersihkan.");
       setTimeout(() => setToastMessage(null), 3000);
     }
   };
@@ -433,108 +361,49 @@ TUGAS & STANDAR REDAKSI UTAMA:
         </div>
       </div>
 
-      {/* Generator Prompt Studio */}
+      {/* Workflow Hub & Execution Card */}
       <div className="bg-white border border-slate-200 shadow-xs p-6 rounded-2xl space-y-4">
-        <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-          <Zap className="w-4 h-4 text-blue-800" />
-          <h2 className="text-sm font-bold text-blue-950 uppercase tracking-wider">
-            Generator Riset Konten Otomatis
-          </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-blue-800" />
+            <h2 className="text-sm font-bold text-blue-950 uppercase tracking-wider">
+              Kontrol Eksekusi Alur Kerja Dify AI
+            </h2>
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 self-start sm:self-auto">
+            Webhook Listener Aktif & Siap Menerima Data
+          </span>
         </div>
 
-        <form onSubmit={handleGenerateAI} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Tipe Konten
-              </label>
-              <select
-                value={generationType}
-                onChange={(e) => setGenerationType(e.target.value as any)}
-                className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-hidden focus:border-blue-900 focus:bg-white"
-              >
-                <option value="FAKTA_MITOS">Fakta vs Mitos (Universal)</option>
-                <option value="PANDUAN_BELANJA">Panduan Belanja (Buying Guide)</option>
-                <option value="TOP_PICKS">5 Barang Terbaik (Kurasi Multi-Produk dari Link)</option>
-                <option value="BERITA_TREN">Kabar & Tren Belanja</option>
-              </select>
-            </div>
+        <p className="text-xs text-slate-600 leading-relaxed">
+          Semua proses riset artikel, komparasi produk, dan cek fakta dijalankan langsung di mesin Dify Studio kamu di server Coolify (<code className="text-blue-900 font-mono font-semibold">https://dify.daeroom.my.id</code>). Ketika workflow selesai, node HTTP Request akan mengirimkan artikel secara langsung dan otomatis tersimpan di Supabase PostgreSQL & server.
+        </p>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Kategori Target
-              </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-hidden focus:border-blue-900 focus:bg-white"
-              >
-                <option value="Fakta vs Mitos">Fakta vs Mitos</option>
-                <option value="Teknologi & AI">Teknologi & AI</option>
-                <option value="Gadget">Gadget & Setup</option>
-                <option value="Smart Home">Smart Home</option>
-                <option value="Tips Hemat">Tips Hemat</option>
-                <option value="Gaya Hidup">Gaya Hidup</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                {generationType === "TOP_PICKS" ? "Koleksi Barang yang Dikurasi" : "Topik / Kata Kunci Spesifik"}
-              </label>
-              <input
-                type="text"
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                placeholder={
-                  generationType === "TOP_PICKS"
-                    ? "Contoh: Earphone TWS Murah atau Smartwatch Baterai Awet"
-                    : "Contoh: Mitos Fast Charging 120W Bikin Rusak Baterai"
-                }
-                required
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-hidden focus:border-blue-900 focus:bg-white text-xs"
-              />
-            </div>
-
-            {generationType === "TOP_PICKS" && (
-              <div className="sm:col-span-3">
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Cantumkan Tautan Produk (TikTok Shop / Shopee / Tokopedia)
-                </label>
-                <input
-                  type="text"
-                  value={productLinksText}
-                  onChange={(e) => setProductLinksText(e.target.value)}
-                  placeholder="https://vt.tiktok.com/... atau link Shopee / Tokopedia produk yang ingin dimasukkan ke kurasi 5 barang terbaik"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-hidden focus:border-blue-900 focus:bg-white text-xs font-mono"
-                />
-              </div>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            disabled={isGenerating}
-            className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-blue-950 hover:bg-blue-900 text-white font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shadow-xs"
+        <div className="flex flex-wrap items-center gap-3 pt-1">
+          <a
+            href="https://dify.daeroom.my.id"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-950 hover:bg-blue-900 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
           >
-            {isGenerating ? (
-              <>
-                <RotateCw className="w-4 h-4 animate-spin text-blue-300" />
-                <span>Mesin Dify Sedang Meriset Data E-Commerce & Menulis...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4 text-blue-300" />
-                <span>Jalankan Riset Dify AI Sekarang</span>
-              </>
-            )}
-          </button>
-        </form>
+            <Sparkles className="w-4 h-4 text-blue-300" />
+            <span>Buka Dify AI Studio (dify.daeroom.my.id)</span>
+            <ExternalLink className="w-3.5 h-3.5 text-blue-300" />
+          </a>
+
+          <Link
+            href="/admin/berita"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all border border-slate-200 cursor-pointer"
+          >
+            <FileText className="w-4 h-4 text-slate-600" />
+            <span>Kelola Artikel Terbitan (Supabase)</span>
+          </Link>
+        </div>
       </div>
 
       {/* Drafts Review Section */}
       <div className="bg-white border border-slate-200 shadow-xs rounded-2xl overflow-hidden">
-        <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between">
+        <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4 text-blue-800" />
@@ -543,95 +412,138 @@ TUGAS & STANDAR REDAKSI UTAMA:
               </h2>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Periksa teks, sesuaikan rekomendasi produk dan link afiliasi, lalu klik publikasikan.
+              Periksa draf sebelum diterbitkan, atau klik tombol untuk langsung menjadikannya artikel live di Supabase.
             </p>
           </div>
+
+          {drafts.length > 0 && (
+            <button
+              onClick={handleClearAll}
+              className="text-xs text-rose-600 hover:text-rose-800 font-semibold px-3 py-1.5 rounded-xl hover:bg-rose-50 border border-rose-200 flex items-center gap-1.5 cursor-pointer shrink-0 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Bersihkan Semua</span>
+            </button>
+          )}
         </div>
 
         <div className="divide-y divide-slate-100">
-          {drafts.map((d) => (
-            <div key={d.id} className="p-6 space-y-4 hover:bg-slate-50/60 transition-colors">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span
-                    className={`text-[9px] font-black uppercase px-2 py-0.5 rounded tracking-wide ${
-                      d.status === "PUBLISHED"
-                        ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                        : "bg-blue-50 text-blue-900 border border-blue-200"
-                    }`}
-                  >
-                    {d.status}
-                  </span>
-                  <span className="text-xs font-bold text-blue-900">{d.category}</span>
-                  <span className="text-slate-300">•</span>
-                  <span className="text-xs text-slate-500 flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-slate-400" /> {d.createdAt}
-                  </span>
-                  <span className="text-[10px] text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 font-medium">
-                    {d.generatedBy}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {d.status === "DRAFT" ? (
-                    <button
-                      onClick={() => handlePublish(d.id, d.title)}
-                      className="px-4 py-2 rounded-xl bg-blue-950 hover:bg-blue-900 text-white text-xs font-bold transition-colors cursor-pointer shadow-xs"
-                    >
-                      Publikasikan ke Live Web
-                    </button>
-                  ) : (
-                    <span className="text-xs font-bold text-emerald-700 flex items-center gap-1 px-3 py-1.5 bg-emerald-50 rounded-xl border border-emerald-200">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Tayang Live</span>
-                    </span>
-                  )}
-                  <button
-                    onClick={() => handleDelete(d.id)}
-                    className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                    title="Hapus Draft"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-base sm:text-lg font-bold text-blue-950 mb-1.5">
-                  {d.title}
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-200">
-                  {d.summary}
-                </p>
-              </div>
-
-              {/* Product recommendations if available */}
-              {d.productRecommendations && d.productRecommendations.length > 0 && (
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                  <div className="text-[11px] font-bold text-blue-950 uppercase tracking-wider">
-                    REKOMENDASI PRODUK AFILIASI DARI AI:
-                  </div>
-                  {d.productRecommendations.map((prod, idx) => (
-                    <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                      <div>
-                        <strong className="text-blue-950 font-bold">{prod.name}</strong> —{" "}
-                        <span className="text-emerald-700 font-semibold">{prod.price}</span>
-                        <div className="text-[11px] text-slate-500">{prod.specs}</div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200 text-[10px] font-bold">
-                          Shopee Ready
-                        </span>
-                        <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
-                          Tokopedia Ready
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+          {drafts.length === 0 ? (
+            <div className="p-10 text-center space-y-2">
+              <Sparkles className="w-8 h-8 text-slate-300 mx-auto" />
+              <div className="text-sm font-bold text-slate-700">Belum Ada Draf Menunggu</div>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                Artikel dari workflow Dify AI akan otomatis masuk ke sini untuk Anda review sebelum dipublikasikan, atau langsung tayang di menu Berita jika diset auto-publish.
+              </p>
             </div>
-          ))}
+          ) : (
+            drafts.map((d) => {
+              const currentSlug = d.publishedSlug || slugify(d.title);
+              const isPublishing = publishingId === d.id;
+
+              return (
+                <div key={d.id} className="p-6 space-y-4 hover:bg-slate-50/60 transition-colors">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span
+                        className={`text-[9px] font-black uppercase px-2 py-0.5 rounded tracking-wide ${
+                          d.status === "PUBLISHED"
+                            ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                            : "bg-blue-50 text-blue-900 border border-blue-200"
+                        }`}
+                      >
+                        {d.status}
+                      </span>
+                      <span className="text-xs font-bold text-blue-900">{d.category}</span>
+                      <span className="text-slate-300">•</span>
+                      <span className="text-xs text-slate-500 flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-slate-400" /> {d.createdAt}
+                      </span>
+                      <span className="text-[10px] text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 font-medium">
+                        {d.generatedBy}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {d.status === "DRAFT" ? (
+                        <button
+                          onClick={() => handlePublish(d.id, d.title)}
+                          disabled={isPublishing}
+                          className="px-4 py-2 rounded-xl bg-blue-950 hover:bg-blue-900 text-white text-xs font-bold transition-colors cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+                        >
+                          {isPublishing ? (
+                            <>
+                              <RotateCw className="w-3.5 h-3.5 animate-spin text-blue-300" />
+                              <span>Menyimpan ke Supabase...</span>
+                            </>
+                          ) : (
+                            <span>Publikasikan ke Live Web</span>
+                          )}
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-emerald-700 flex items-center gap-1 px-3 py-1.5 bg-emerald-50 rounded-xl border border-emerald-200">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Tayang Live</span>
+                          </span>
+                          <Link
+                            href={`/berita/${currentSlug}`}
+                            target="_blank"
+                            className="text-xs font-bold text-blue-700 hover:text-blue-900 underline flex items-center gap-1 px-2.5 py-1.5 hover:bg-blue-50 rounded-lg transition-colors"
+                          >
+                            <span>Buka Halaman Live</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </Link>
+                        </div>
+                      )}
+                      <button
+                        onClick={() => handleDelete(d.id)}
+                        className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                        title="Hapus Draft"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-base sm:text-lg font-bold text-blue-950 mb-1.5">
+                      {d.title}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-200">
+                      {d.summary}
+                    </p>
+                  </div>
+
+                  {/* Product recommendations if available */}
+                  {d.productRecommendations && d.productRecommendations.length > 0 && (
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                      <div className="text-[11px] font-bold text-blue-950 uppercase tracking-wider">
+                        REKOMENDASI PRODUK AFILIASI DARI AI:
+                      </div>
+                      {d.productRecommendations.map((prod, idx) => (
+                        <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                          <div>
+                            <strong className="text-blue-950 font-bold">{prod.name}</strong> —{" "}
+                            <span className="text-emerald-700 font-semibold">{prod.price}</span>
+                            <div className="text-[11px] text-slate-500">{prod.specs}</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200 text-[10px] font-bold">
+                              Shopee Ready
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
+                              Tokopedia Ready
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
     </div>

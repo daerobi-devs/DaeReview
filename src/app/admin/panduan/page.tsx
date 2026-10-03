@@ -23,9 +23,10 @@ import {
   AlertCircle,
   Zap,
   RotateCw,
-  BookOpen
+  BookOpen,
+  FileCheck
 } from "lucide-react";
-import { BUYING_GUIDES, Product } from "@/data/mockData";
+import { BUYING_GUIDES, Product, BuyingGuide, BuyingGuideProduct } from "@/data/mockData";
 import {
   getAllProducts,
   saveProduct,
@@ -33,15 +34,39 @@ import {
   deleteProduct,
   PRODUCTS_UPDATE_EVENT
 } from "@/lib/dynamicProducts";
+import {
+  getAllGuides,
+  saveGuide,
+  updateGuide,
+  deleteCustomGuide,
+  GUIDES_UPDATE_EVENT
+} from "@/lib/dynamicGuides";
+import { slugify } from "@/lib/dynamicNews";
 import { compressImage, CompressResult } from "@/lib/imageCompressor";
 import { addDifyDraft } from "@/lib/dify";
 
 export default function AdminPanduanPage() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [activeTab, setActiveTab] = useState<"products" | "add_product" | "guides">("products");
+  const [guides, setGuides] = useState<BuyingGuide[]>([]);
+  const [isLoadingGuides, setIsLoadingGuides] = useState(false);
+  const [activeTab, setActiveTab] = useState<"products" | "add_product" | "guides" | "add_guide">("products");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCat, setSelectedCat] = useState("Semua");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Guide Form states
+  const [isEditingGuide, setIsEditingGuide] = useState(false);
+  const [editingGuideId, setEditingGuideId] = useState<string | null>(null);
+  const [guideTitle, setGuideTitle] = useState("");
+  const [guideSlug, setGuideSlug] = useState("");
+  const [guideSubtitle, setGuideSubtitle] = useState("");
+  const [guideCategory, setGuideCategory] = useState<"gadget" | "audio" | "smarthome" | "dapur" | "lifestyle">("gadget");
+  const [guideCoverImage, setGuideCoverImage] = useState("");
+  const [guideIntro, setGuideIntro] = useState("");
+  const [guideReadTime, setGuideReadTime] = useState("6 menit");
+  const [guideSelectedProductIds, setGuideSelectedProductIds] = useState<string[]>([]);
+  const [guideAdviceTitle, setGuideAdviceTitle] = useState("Tips Memilih Sebelum Membeli");
+  const [guideAdviceContent, setGuideAdviceContent] = useState("");
 
   // Selected products for Dify AI Multi-Product Buying Guide Curator
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
@@ -85,6 +110,29 @@ export default function AdminPanduanPage() {
   } | null>(null);
   const [isCompressing, setIsCompressing] = useState(false);
 
+  // Load guides (sync with local + server /api/guides)
+  const loadGuides = async () => {
+    const local = getAllGuides();
+    setGuides(local);
+
+    try {
+      setIsLoadingGuides(true);
+      const res = await fetch("/api/guides");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.guides && Array.isArray(data.guides)) {
+          const serverSlugs = new Set(data.guides.map((g: BuyingGuide) => g.slug));
+          const localOnly = local.filter((g) => !serverSlugs.has(g.slug));
+          setGuides([...localOnly, ...data.guides]);
+        }
+      }
+    } catch (err) {
+      console.warn("Gagal memuat panduan dari server:", err);
+    } finally {
+      setIsLoadingGuides(false);
+    }
+  };
+
   // Load products (sync with /api/products so Supabase & server data appear)
   const loadProducts = async () => {
     const local = getAllProducts();
@@ -107,13 +155,17 @@ export default function AdminPanduanPage() {
 
   useEffect(() => {
     loadProducts();
+    loadGuides();
 
-    const handleUpdate = () => {
-      loadProducts();
+    const handleProdUpdate = () => loadProducts();
+    const handleGuideUpdate = () => loadGuides();
+
+    window.addEventListener(PRODUCTS_UPDATE_EVENT, handleProdUpdate);
+    window.addEventListener(GUIDES_UPDATE_EVENT, handleGuideUpdate);
+    return () => {
+      window.removeEventListener(PRODUCTS_UPDATE_EVENT, handleProdUpdate);
+      window.removeEventListener(GUIDES_UPDATE_EVENT, handleGuideUpdate);
     };
-
-    window.addEventListener(PRODUCTS_UPDATE_EVENT, handleUpdate);
-    return () => window.removeEventListener(PRODUCTS_UPDATE_EVENT, handleUpdate);
   }, []);
 
   const categories = ["Semua", "audio", "gadget", "smarthome", "dapur", "lifestyle"];
@@ -126,10 +178,205 @@ export default function AdminPanduanPage() {
     return matchesSearch && matchesCat;
   });
 
-  const filteredGuides = BUYING_GUIDES.filter((g) =>
+  const filteredGuides = guides.filter((g) =>
     g.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    g.categoryName.toLowerCase().includes(searchTerm.toLowerCase())
+    g.categoryName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    g.subtitle.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const resetGuideForm = () => {
+    setIsEditingGuide(false);
+    setEditingGuideId(null);
+    setGuideTitle("");
+    setGuideSlug("");
+    setGuideSubtitle("");
+    setGuideCategory("gadget");
+    setGuideCoverImage("");
+    setGuideIntro("");
+    setGuideReadTime("6 menit");
+    setGuideSelectedProductIds([]);
+    setGuideAdviceTitle("Tips Memilih Sebelum Membeli");
+    setGuideAdviceContent("");
+  };
+
+  const handleGuideTitleChange = (val: string) => {
+    setGuideTitle(val);
+    if (!isEditingGuide) {
+      setGuideSlug(slugify(val));
+    }
+  };
+
+  const handleToggleProductInGuide = (id: string) => {
+    setGuideSelectedProductIds((prev) =>
+      prev.includes(id) ? prev.filter((pId) => pId !== id) : [...prev, id]
+    );
+  };
+
+  const handleStartEditGuide = (guide: BuyingGuide) => {
+    setIsEditingGuide(true);
+    setEditingGuideId(guide.id);
+    setGuideTitle(guide.title);
+    setGuideSlug(guide.slug);
+    setGuideSubtitle(guide.subtitle || "");
+    setGuideCategory(guide.category as any);
+    setGuideCoverImage(guide.coverImage || "");
+    setGuideIntro(guide.intro ? guide.intro.join("\n\n") : "");
+    setGuideReadTime(guide.readTime || "6 menit");
+    const pIds = guide.products
+      ? guide.products
+          .map((p) => {
+            const found = products.find((prod) => prod.name.toLowerCase() === p.name.toLowerCase());
+            return found ? found.id : (p as any).id;
+          })
+          .filter(Boolean)
+      : [];
+    setGuideSelectedProductIds(pIds);
+    if (guide.buyingAdvice && guide.buyingAdvice.length > 0) {
+      setGuideAdviceTitle(guide.buyingAdvice[0].title);
+      setGuideAdviceContent(guide.buyingAdvice[0].content);
+    }
+    setActiveTab("add_guide");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleDeleteGuide = async (id: string, title: string) => {
+    if (confirm(`Yakin ingin menghapus panduan belanja "${title}"?`)) {
+      deleteCustomGuide(id);
+      setGuides((prev) => prev.filter((g) => g.id !== id));
+      try {
+        await fetch(`/api/guides?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      } catch (e) {
+        console.warn("Gagal hapus panduan di server:", e);
+      }
+      setToastMessage(`Panduan "${title}" berhasil dihapus.`);
+      setTimeout(() => setToastMessage(null), 3000);
+    }
+  };
+
+  const handleSaveGuide = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!guideTitle.trim() || !guideSlug.trim()) {
+      alert("Judul dan slug URL panduan wajib diisi.");
+      return;
+    }
+
+    const chosenProducts = products.filter((p) => guideSelectedProductIds.includes(p.id));
+    if (chosenProducts.length === 0) {
+      alert("Pilih minimal 1 produk dari katalog untuk dimasukkan ke panduan ini.");
+      return;
+    }
+
+    const mappedProducts: BuyingGuideProduct[] = chosenProducts.map((p, idx) => ({
+      rank: idx + 1,
+      badge: (idx === 0 ? "PILIHAN UTAMA" : idx === 1 ? "PALING HEMAT" : "POPULER") as any,
+      name: p.name,
+      tagline: p.tagline,
+      rating: p.rating,
+      reviewCount: p.reviewCount,
+      price: p.price,
+      originalPrice: p.originalPrice,
+      discount: p.discount,
+      image: p.image,
+      verdict: p.verdict,
+      pros: p.pros,
+      cons: p.cons,
+      specs: p.specs,
+      shopeeUrl: p.shopeeUrl,
+      tokopediaUrl: p.tokopediaUrl,
+      verifiedOfficial: p.verifiedOfficial,
+    }));
+
+    const quickPicks = mappedProducts.slice(0, 3).map((p, idx) => ({
+      type: (idx === 0 ? "Terbaik" : idx === 1 ? "Termurah" : "Premium") as any,
+      badge: p.badge,
+      name: p.name,
+      price: p.price,
+      shopeeUrl: p.shopeeUrl,
+      tokopediaUrl: p.tokopediaUrl,
+      image: p.image,
+    }));
+
+    const catName =
+      guideCategory === "audio"
+        ? "Audio & TWS"
+        : guideCategory === "gadget"
+        ? "Gadget & Setup"
+        : guideCategory === "smarthome"
+        ? "Smart Home"
+        : guideCategory === "dapur"
+        ? "Peralatan Dapur"
+        : "Gaya Hidup";
+
+    const guidePayload: Partial<BuyingGuide> = {
+      title: guideTitle.trim(),
+      slug: guideSlug.trim(),
+      subtitle: guideSubtitle.trim() || `Panduan rekomendasi teruji untuk ${guideTitle.trim()}`,
+      category: guideCategory,
+      categoryName: catName,
+      coverImage:
+        guideCoverImage.trim() ||
+        chosenProducts[0]?.image ||
+        "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=80",
+      excerpt: guideSubtitle.trim() || `Riset mendalam dan rekomendasi terbaik untuk ${guideTitle.trim()}`,
+      itemCount: mappedProducts.length,
+      readTime: guideReadTime || "6 menit",
+      intro: guideIntro.trim()
+        ? guideIntro.split("\n\n").map((s) => s.trim()).filter(Boolean)
+        : [guideSubtitle.trim() || `Memilih produk terbaik membutuhkan perbandingan teliti.`],
+      products: mappedProducts,
+      quickPicks,
+      author: {
+        id: "daerobi",
+        name: "Daerobi",
+        role: "Lead Tech & Workspace Specialist",
+        avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80",
+        bio: "Kurator utama riset gadget dan belanja cerdas Indonesia.",
+      },
+      buyingAdvice: guideAdviceContent.trim()
+        ? [
+            {
+              title: guideAdviceTitle.trim() || "Tips Memilih Sebelum Membeli",
+              content: guideAdviceContent.trim(),
+            },
+          ]
+        : [
+            {
+              title: "Panduan Memeriksa Garansi & Keaslian Toko",
+              content:
+                "Pastikan selalu membeli di toko resmi terverifikasi untuk mendapatkan garansi manufaktur yang aman.",
+            },
+          ],
+      faqs: [
+        {
+          q: `Kapan waktu terbaik membeli produk di panduan ini?`,
+          a: "Momen promo tanggal kembar atau payday sale di Shopee & Tokopedia memberikan diskon dan voucher cashback terbaik.",
+        },
+      ],
+    };
+
+    if (isEditingGuide && editingGuideId) {
+      updateGuide(editingGuideId, guidePayload);
+      fetch("/api/guides", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingGuideId, ...guidePayload }),
+      }).catch((e) => console.warn("API update guide note:", e));
+      setToastMessage(`Panduan "${guideTitle}" berhasil diperbarui!`);
+    } else {
+      const saved = saveGuide(guidePayload as any);
+      fetch("/api/guides", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(saved),
+      }).catch((e) => console.warn("API save guide note:", e));
+      setToastMessage(`Panduan baru "${guideTitle}" berhasil diterbitkan live!`);
+    }
+
+    resetGuideForm();
+    setActiveTab("guides");
+    loadGuides();
+    setTimeout(() => setToastMessage(null), 3500);
+  };
 
   // Reset form
   const resetForm = () => {
@@ -348,6 +595,30 @@ export default function AdminPanduanPage() {
     }
   };
 
+  // Guide Cover Upload with Auto-compress ~120KB WebP
+  const handleGuideCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsCompressing(true);
+    try {
+      const result: CompressResult = await compressImage(file, {
+        targetSizeKB: 120,
+        maxDimension: 1200,
+      });
+
+      setGuideCoverImage(result.base64);
+      setToastMessage(
+        `Foto sampul panduan dikompresi: ${result.originalSizeKB}KB ➔ ${result.compressedSizeKB}KB (Hemat ${result.reductionPercentage}%)`
+      );
+      setTimeout(() => setToastMessage(null), 4000);
+    } catch (err) {
+      alert("Gagal mengompresi gambar sampul.");
+    } finally {
+      setIsCompressing(false);
+    }
+  };
+
   // Toggle selection for multi-product Dify curation
   const toggleSelectProduct = (id: string) => {
     if (selectedProductIds.includes(id)) {
@@ -513,7 +784,7 @@ export default function AdminPanduanPage() {
 
         <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Koleksi Panduan</span>
-          <p className="text-2xl font-black text-blue-950 mt-1">{BUYING_GUIDES.length}</p>
+          <p className="text-2xl font-black text-blue-950 mt-1">{guides.length}</p>
           <span className="text-[10px] text-blue-600 font-semibold mt-0.5 block">Komparasi Mendalam</span>
         </div>
 
@@ -558,7 +829,7 @@ export default function AdminPanduanPage() {
           }`}
         >
           <PlusCircle className="w-3.5 h-3.5" />
-          <span>{isEditing ? "✏️ Edit Produk Terpilih" : "➕ Tambah / Input Barang Baru"}</span>
+          <span>{isEditing ? "✏️ Edit Produk Terpilih" : "➕ Tambah / Input Barang"}</span>
         </button>
 
         <button
@@ -570,7 +841,22 @@ export default function AdminPanduanPage() {
           }`}
         >
           <Layers className="w-3.5 h-3.5" />
-          <span>📑 Koleksi Panduan Belanja ({BUYING_GUIDES.length})</span>
+          <span>📑 Koleksi Panduan Belanja ({guides.length})</span>
+        </button>
+
+        <button
+          onClick={() => {
+            if (!isEditingGuide) resetGuideForm();
+            setActiveTab("add_guide");
+          }}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-2 ${
+            activeTab === "add_guide"
+              ? "bg-blue-950 text-white shadow-xs"
+              : "bg-white text-slate-600 hover:text-blue-950 border border-slate-200"
+          }`}
+        >
+          <BookOpen className="w-3.5 h-3.5" />
+          <span>{isEditingGuide ? "✏️ Edit Panduan Terpilih" : "➕ Buat Panduan Belanja Baru"}</span>
         </button>
       </div>
 
@@ -1261,7 +1547,7 @@ export default function AdminPanduanPage() {
       {/* TAB 3: KOLEKSI PANDUAN BELANJA */}
       {activeTab === "guides" && (
         <div className="space-y-4">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="relative flex-1 max-w-md">
               <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
               <input
@@ -1272,6 +1558,18 @@ export default function AdminPanduanPage() {
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-hidden focus:border-blue-900 text-xs shadow-xs"
               />
             </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                resetGuideForm();
+                setActiveTab("add_guide");
+              }}
+              className="px-4 py-2.5 rounded-xl bg-blue-950 hover:bg-blue-900 text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs shrink-0"
+            >
+              <PlusCircle className="w-3.5 h-3.5" />
+              <span>➕ Buat Panduan Belanja Baru</span>
+            </button>
           </div>
 
           <div className="space-y-4">
@@ -1295,9 +1593,14 @@ export default function AdminPanduanPage() {
                         {guide.categoryName}
                       </span>
                       <span className="text-slate-300">•</span>
-                      <span className="text-slate-500">{guide.products.length} Produk Terpilih</span>
+                      <span className="text-slate-500">{guide.products?.length || 0} Produk Terpilih</span>
                       <span className="text-slate-300">•</span>
-                      <span className="text-slate-500">Editor: {guide.author.name}</span>
+                      <span className="text-slate-500">Editor: {guide.author?.name || "Daerobi"}</span>
+                      {guide.id.startsWith("guide-") && (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
+                          Custom Live
+                        </span>
+                      )}
                     </div>
                     <h3 className="text-base font-bold text-blue-950 leading-snug">
                       {guide.title}
@@ -1308,19 +1611,345 @@ export default function AdminPanduanPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0 w-full lg:w-auto justify-end border-t lg:border-t-0 border-slate-100 pt-3 lg:pt-0">
+                <div className="flex items-center gap-2 shrink-0 w-full lg:w-auto justify-end border-t lg:border-t-0 border-slate-100 pt-3 lg:pt-0 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => handleStartEditGuide(guide)}
+                    className="px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-900 text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-blue-700" />
+                    <span>Edit</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteGuide(guide.id, guide.title)}
+                    className="px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                    <span>Hapus</span>
+                  </button>
+
                   <Link
                     href={`/panduan/${guide.slug}`}
                     target="_blank"
                     className="px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-blue-950 text-xs font-semibold transition-colors flex items-center gap-1.5"
                   >
-                    <span>Lihat Panduan</span>
+                    <span>Lihat Live</span>
                     <ExternalLink className="w-3.5 h-3.5 text-blue-700" />
                   </Link>
                 </div>
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* TAB 4: BUAT / EDIT PANDUAN BELANJA */}
+      {activeTab === "add_guide" && (
+        <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-bold text-blue-900 uppercase tracking-wider mb-1">
+                <BookOpen className="w-3.5 h-3.5 text-blue-700" />
+                <span>{isEditingGuide ? "EDIT PANDUAN BELANJA" : "FORM PANDUAN BELANJA BARU"}</span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black text-blue-950">
+                {isEditingGuide ? `Edit Panduan: ${guideTitle}` : "Buat Panduan Belanja Teruji"}
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Pilih produk dari katalog, susun tips belanja, dan terbitkan halaman panduan rekomendasi yang terhubung otomatis ke affiliate.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                resetGuideForm();
+                setActiveTab("guides");
+              }}
+              className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
+            >
+              Batal & Kembali
+            </button>
+          </div>
+
+          <form onSubmit={handleSaveGuide} className="space-y-6">
+            {/* Title & Slug */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Judul Panduan Belanja <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={guideTitle}
+                  onChange={(e) => handleGuideTitleChange(e.target.value)}
+                  placeholder="Contoh: 5 TWS Murah Bass Terbaik di Bawah 500 Ribu 2026"
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-hidden focus:border-blue-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Slug URL <span className="text-red-500">*</span>
+                </label>
+                <div className="flex items-center">
+                  <span className="px-3 py-2.5 bg-slate-100 text-slate-500 text-xs rounded-l-xl border border-r-0 border-slate-200">
+                    /panduan/
+                  </span>
+                  <input
+                    type="text"
+                    required
+                    value={guideSlug}
+                    onChange={(e) => setGuideSlug(slugify(e.target.value))}
+                    placeholder="tws-murah-bass-terbaik"
+                    className="w-full px-4 py-2.5 rounded-r-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-hidden focus:border-blue-900"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Subtitle & Category */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Subtitle / Ringkasan Utama
+                </label>
+                <input
+                  type="text"
+                  value={guideSubtitle}
+                  onChange={(e) => setGuideSubtitle(e.target.value)}
+                  placeholder="Contoh: Panduan rekomendasi earphone wireless hasil tes latensi dan ketahanan baterai."
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-hidden focus:border-blue-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Kategori Panduan
+                </label>
+                <select
+                  value={guideCategory}
+                  onChange={(e) => setGuideCategory(e.target.value as any)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-hidden focus:border-blue-900"
+                >
+                  <option value="gadget">Gadget & Setup</option>
+                  <option value="audio">Audio & TWS</option>
+                  <option value="smarthome">Smart Home</option>
+                  <option value="dapur">Peralatan Dapur</option>
+                  <option value="lifestyle">Gaya Hidup & Harian</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Cover Image & Read Time */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Cover Image URL / Upload Foto Sampul
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={guideCoverImage}
+                    onChange={(e) => setGuideCoverImage(e.target.value)}
+                    placeholder="https://images.unsplash.com/... atau upload di samping"
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-hidden focus:border-blue-900"
+                  />
+                  <label className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-900 rounded-xl text-xs font-bold border border-blue-200 flex items-center gap-1.5 cursor-pointer shrink-0">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Upload Foto</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleGuideCoverUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Estimasi Waktu Baca
+                </label>
+                <input
+                  type="text"
+                  value={guideReadTime}
+                  onChange={(e) => setGuideReadTime(e.target.value)}
+                  placeholder="6 menit"
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-hidden focus:border-blue-900"
+                />
+              </div>
+            </div>
+
+            {/* Intro Content */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Paragraf Pembuka / Metodologi Pengujian
+              </label>
+              <textarea
+                rows={3}
+                value={guideIntro}
+                onChange={(e) => setGuideIntro(e.target.value)}
+                placeholder="Tuliskan latar belakang panduan atau pengantar riset pengujian di sini (pisahkan paragraf dengan baris kosong)..."
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-hidden focus:border-blue-900 leading-relaxed"
+              />
+            </div>
+
+            {/* MULTI-PRODUCT SELECTION SECTION */}
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-bold text-blue-950 flex items-center gap-2">
+                    <ShoppingBag className="w-4 h-4 text-blue-700" />
+                    <span>Pilih Produk Masuk ke Panduan Ini ({guideSelectedProductIds.length} Terpilih)</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Centang produk dari katalog di bawah. Produk urutan ke-1 akan berlabel <strong>PILIHAN UTAMA</strong>, urutan ke-2 <strong>PALING HEMAT</strong>, dan urutan ke-3 <strong>POPULER</strong>.
+                  </p>
+                </div>
+
+                {guideSelectedProductIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setGuideSelectedProductIds([])}
+                    className="text-xs text-red-600 hover:text-red-700 font-semibold self-start sm:self-auto"
+                  >
+                    Reset Pilihan ({guideSelectedProductIds.length})
+                  </button>
+                )}
+              </div>
+
+              {/* Product Picker Grid */}
+              <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+                {products.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-slate-500 bg-white rounded-xl border border-slate-200">
+                    Belum ada produk di katalog. Silakan input produk baru terlebih dahulu di tab &quot;Tambah Produk&quot;.
+                  </div>
+                ) : (
+                  products.map((prod) => {
+                    const isSelected = guideSelectedProductIds.includes(prod.id);
+                    const selectedRank = guideSelectedProductIds.indexOf(prod.id) + 1;
+
+                    return (
+                      <div
+                        key={prod.id}
+                        onClick={() => handleToggleProductInGuide(prod.id)}
+                        className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                          isSelected
+                            ? "bg-blue-50/80 border-blue-900 shadow-xs"
+                            : "bg-white border-slate-200 hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 text-xs font-black transition-colors ${
+                              isSelected
+                                ? "bg-blue-950 text-white"
+                                : "bg-slate-100 text-slate-400 border border-slate-200"
+                            }`}
+                          >
+                            {isSelected ? selectedRank : <Check className="w-3.5 h-3.5 opacity-0" />}
+                          </div>
+
+                          <div className="w-12 h-12 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
+                            <img
+                              src={prod.image}
+                              alt={prod.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+
+                          <div className="min-w-0">
+                            <h4 className="text-xs font-bold text-blue-950 truncate">
+                              {prod.name}
+                            </h4>
+                            <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-0.5">
+                              <span className="font-semibold text-emerald-700">{prod.price}</span>
+                              <span>•</span>
+                              <span className="uppercase">{prod.category}</span>
+                              {prod.badge && (
+                                <>
+                                  <span>•</span>
+                                  <span className="text-blue-900 font-bold">{prod.badge}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="shrink-0 text-right">
+                          <span
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
+                              isSelected
+                                ? "bg-blue-950 text-white"
+                                : "bg-slate-100 text-slate-600"
+                            }`}
+                          >
+                            {isSelected ? `Peringkat #${selectedRank}` : "+ Pilih"}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Buying Advice Section */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-5 rounded-2xl bg-slate-50 border border-slate-200">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Judul Tips Memilih / Keaslian Toko
+                </label>
+                <input
+                  type="text"
+                  value={guideAdviceTitle}
+                  onChange={(e) => setGuideAdviceTitle(e.target.value)}
+                  placeholder="Tips Memilih Sebelum Membeli"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-hidden focus:border-blue-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Isi Tips Belanja & Keamanan Toko
+                </label>
+                <textarea
+                  rows={2}
+                  value={guideAdviceContent}
+                  onChange={(e) => setGuideAdviceContent(e.target.value)}
+                  placeholder="Tuliskan saran memilih toko official dan memeriksa kartu garansi resmi distributor..."
+                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-hidden focus:border-blue-900"
+                />
+              </div>
+            </div>
+
+            {/* Submit Action */}
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  resetGuideForm();
+                  setActiveTab("guides");
+                }}
+                className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
+              >
+                Batal
+              </button>
+
+              <button
+                type="submit"
+                className="px-6 py-2.5 rounded-xl bg-blue-950 hover:bg-blue-900 text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-2 shadow-xs"
+              >
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>{isEditingGuide ? "💾 Simpan Perubahan Panduan" : "🚀 Publikasikan Panduan Belanja"}</span>
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

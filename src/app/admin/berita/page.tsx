@@ -21,9 +21,17 @@ import {
   ArrowRight,
   RefreshCw,
   FileCheck,
-  Pencil
+  Pencil,
+  Bold,
+  Italic,
+  Heading2,
+  Heading3,
+  List,
+  Quote,
+  Table,
+  Link as LinkIcon
 } from "lucide-react";
-import { MOCK_NEWS, MOCK_PRODUCTS, NewsArticle } from "@/data/mockData";
+import { MOCK_NEWS, MOCK_PRODUCTS, NewsArticle, Product } from "@/data/mockData";
 import {
   getAllArticles,
   saveArticle,
@@ -32,6 +40,7 @@ import {
   slugify,
   NEWS_UPDATE_EVENT
 } from "@/lib/dynamicNews";
+import { getAllProducts, PRODUCTS_UPDATE_EVENT } from "@/lib/dynamicProducts";
 import { compressImage, CompressResult } from "@/lib/imageCompressor";
 
 type NewsCategory =
@@ -47,6 +56,7 @@ type NewsCategory =
 export default function AdminBeritaPage() {
   const [activeTab, setActiveTab] = useState<"list" | "create">("list");
   const [articles, setArticles] = useState<NewsArticle[]>([]);
+  const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCat, setSelectedCat] = useState("Semua");
   const [successToast, setSuccessToast] = useState<string | null>(null);
@@ -82,6 +92,29 @@ export default function AdminBeritaPage() {
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressError, setCompressError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const insertFormat = (before: string, after: string = "", defaultPlaceholder: string = "") => {
+    const el = contentTextareaRef.current;
+    if (!el) {
+      setContentRaw((prev) => prev + (prev.endsWith("\n") || prev.length === 0 ? "" : "\n\n") + before + defaultPlaceholder + after);
+      return;
+    }
+
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const current = el.value;
+    const selected = current.substring(start, end) || defaultPlaceholder;
+
+    const replacement = before + selected + after;
+    const nextVal = current.substring(0, start) + replacement + current.substring(end);
+    setContentRaw(nextVal);
+
+    setTimeout(() => {
+      el.focus();
+      el.setSelectionRange(start + before.length, start + before.length + selected.length);
+    }, 50);
+  };
 
   const handleScrapeTikTok = async () => {
     if (!tiktokUrl.trim()) {
@@ -123,6 +156,26 @@ export default function AdminBeritaPage() {
 
   const [isLoadingArticles, setIsLoadingArticles] = useState(false);
 
+  // Load products for dropdown (sync with local + server /api/products)
+  const loadAvailableProducts = async () => {
+    const local = getAllProducts();
+    setAvailableProducts(local);
+
+    try {
+      const res = await fetch("/api/products");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.products && Array.isArray(data.products)) {
+          const serverIds = new Set(data.products.map((p: Product) => p.id));
+          const localOnly = local.filter((p) => p.isCustom && !serverIds.has(p.id));
+          setAvailableProducts([...localOnly, ...data.products]);
+        }
+      }
+    } catch (err) {
+      console.warn("Gagal memuat produk untuk tautan artikel:", err);
+    }
+  };
+
   // Load articles (sync with server /api/news so Dify articles show up)
   const loadArticles = async () => {
     const local = getAllArticles();
@@ -148,13 +201,19 @@ export default function AdminBeritaPage() {
 
   useEffect(() => {
     loadArticles();
+    loadAvailableProducts();
 
     const handleUpdate = () => {
       loadArticles();
+      loadAvailableProducts();
     };
 
     window.addEventListener(NEWS_UPDATE_EVENT, handleUpdate);
-    return () => window.removeEventListener(NEWS_UPDATE_EVENT, handleUpdate);
+    window.addEventListener(PRODUCTS_UPDATE_EVENT, handleUpdate);
+    return () => {
+      window.removeEventListener(NEWS_UPDATE_EVENT, handleUpdate);
+      window.removeEventListener(PRODUCTS_UPDATE_EVENT, handleUpdate);
+    };
   }, []);
 
   // Update slug automatically when title changes
@@ -1053,18 +1112,115 @@ export default function AdminBeritaPage() {
 
             {/* Isi Konten Lengkap Artikel */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Isi Lengkap Artikel (Paragraf demi Paragraf)
-              </label>
-              <p className="text-[11px] text-slate-500 mb-2">
-                Tekan <strong>Enter 2 kali</strong> (baris kosong) untuk memisahkan setiap paragraf. Format otomatis dibuat rapi dengan jarak antar paragraf standar editorial.
-              </p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Isi Lengkap Artikel (Paragraf demi Paragraf)
+                </label>
+                <div className="text-[11px] text-slate-500 font-mono">
+                  {contentRaw.split(/\s+/).filter(Boolean).length} kata • {contentRaw.length} karakter
+                </div>
+              </div>
+
+              {/* Rich Markdown Formatting Toolbar */}
+              <div className="p-2 bg-slate-100 rounded-t-xl border border-b-0 border-slate-200 flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">Toolbar:</span>
+
+                <button
+                  type="button"
+                  onClick={() => insertFormat("**", "**", "teks tebal")}
+                  className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold flex items-center gap-1 shadow-2xs cursor-pointer transition-colors"
+                  title="Format Tebal (**teks**)"
+                >
+                  <Bold className="w-3.5 h-3.5" />
+                  <span>Tebal</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => insertFormat("*", "*", "teks miring")}
+                  className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold italic flex items-center gap-1 shadow-2xs cursor-pointer transition-colors"
+                  title="Format Miring (*teks*)"
+                >
+                  <Italic className="w-3.5 h-3.5" />
+                  <span>Miring</span>
+                </button>
+
+                <div className="h-4 w-px bg-slate-300 mx-0.5" />
+
+                <button
+                  type="button"
+                  onClick={() => insertFormat("\n## ", "\n", "Judul Bagian")}
+                  className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 text-xs font-bold flex items-center gap-1 shadow-2xs cursor-pointer transition-colors"
+                  title="Subjudul Utama (H2)"
+                >
+                  <Heading2 className="w-3.5 h-3.5 text-blue-900" />
+                  <span>H2</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => insertFormat("\n### ", "\n", "Poin Sub-Bahasan")}
+                  className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 text-xs font-bold flex items-center gap-1 shadow-2xs cursor-pointer transition-colors"
+                  title="Subjudul Kecil (H3)"
+                >
+                  <Heading3 className="w-3.5 h-3.5 text-blue-900" />
+                  <span>H3</span>
+                </button>
+
+                <div className="h-4 w-px bg-slate-300 mx-0.5" />
+
+                <button
+                  type="button"
+                  onClick={() => insertFormat("\n- ", "\n", "Poin keunggulan atau fitur")}
+                  className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold flex items-center gap-1 shadow-2xs cursor-pointer transition-colors"
+                  title="Daftar Poin (Bullet List)"
+                >
+                  <List className="w-3.5 h-3.5" />
+                  <span>Poin (- )</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => insertFormat("\n> 💡 **Tips Redaksi**: ", "\n", "Periksa ulasan pembeli toko resmi sebelum memesan untuk keamanan ekstra.")}
+                  className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold flex items-center gap-1 shadow-2xs cursor-pointer transition-colors"
+                  title="Kotak Tips / Callout Quote"
+                >
+                  <Quote className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Kotak Tips</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => insertFormat(
+                    "\n| Parameter / Fitur | Opsi A | Opsi B |\n| :--- | :--- | :--- |\n| Daya Tahan Baterai | 30 Jam | 24 Jam |\n| Skor Lab Riset | 4.8 / 5 | 4.5 / 5 |\n| Kisaran Harga | Rp 350.000 | Rp 420.000 |\n",
+                    "",
+                    ""
+                  )}
+                  className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold flex items-center gap-1 shadow-2xs cursor-pointer transition-colors"
+                  title="Tabel Komparasi Fitur"
+                >
+                  <Table className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Tabel Komparasi</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => insertFormat("[", "](https://...)", "teks tautan")}
+                  className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold flex items-center gap-1 shadow-2xs cursor-pointer transition-colors"
+                  title="Sisipkan Tautan Web"
+                >
+                  <LinkIcon className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Link</span>
+                </button>
+              </div>
+
               <textarea
-                rows={8}
+                ref={contentTextareaRef}
+                rows={10}
                 value={contentRaw}
                 onChange={(e) => setContentRaw(e.target.value)}
                 placeholder="Paragraf pertama: Pembuka fakta atau fenomena yang dibahas...&#10;&#10;Paragraf kedua: Ulasan teknis, data pengujian lab, atau alasan mendalam...&#10;&#10;Paragraf ketiga: Rekomendasi solusi bagi pembaca..."
-                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-hidden focus:border-blue-900 focus:bg-white text-xs leading-relaxed font-sans"
+                className="w-full px-4 py-3 rounded-b-xl rounded-t-none bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-hidden focus:border-blue-900 focus:bg-white text-xs leading-relaxed font-sans"
               />
             </div>
 
@@ -1080,9 +1236,9 @@ export default function AdminBeritaPage() {
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-hidden focus:border-blue-900 cursor-pointer"
                 >
                   <option value="">-- Tidak Ada Produk Tertaut --</option>
-                  {MOCK_PRODUCTS.map((p) => (
+                  {availableProducts.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name} ({p.price})
+                      {p.name} ({p.price}) {p.isCustom ? "★ [Katalog Baru]" : ""}
                     </option>
                   ))}
                 </select>

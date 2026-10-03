@@ -1,3 +1,5 @@
+import { saveArticle, slugify } from "@/lib/dynamicNews";
+
 export interface DifyDraft {
   id: string;
   type: "PANDUAN_BELANJA" | "FAKTA_MITOS" | "BERITA_TREN";
@@ -17,71 +19,30 @@ export interface DifyDraft {
   }[];
   createdAt: string;
   status: "DRAFT" | "PUBLISHED";
-  generatedBy: "Dify AI Engine (v1.0)" | "Manual Editor";
+  generatedBy: "Dify AI Engine (v1.0)" | "Dify AI Engine (v2.0)" | "Manual Editor";
+  publishedSlug?: string;
 }
 
 const STORAGE_KEY = "daereview_dify_drafts_v1";
 
-export const INITIAL_DIFY_DRAFTS: DifyDraft[] = [
-  {
-    id: "draft-dify-1",
-    type: "FAKTA_MITOS",
-    title: "Fakta vs Mitos: Benarkah Mematikan AC Saat Keluar Kamar 15 Menit Lebih Boros Listrik Inverter?",
-    category: "Fakta vs Mitos",
-    summary: "Analisis kompresor inverter: tarikan awal daya 800W saat starter vs mode standby 150W saat suhu stabil. Kapan sebaiknya AC dibiarkan menyala?",
-    content: [
-      "Banyak mitos di internet menyebutkan bahwa mematikan AC inverter untuk durasi singkat justru bikin boros karena kompresor harus bekerja keras dari nol lagi saat dinyalakan.",
-      "Hasil uji teknis: Jika Anda keluar kamar kurang dari 15-20 menit, membiarkan AC inverter tetap menyala pada suhu 24-25°C justru lebih hemat karena kompresor hanya membutuhkan daya 120-180 Watt untuk mempertahankan suhu dingin yang sudah terbentuk.",
-      "Namun jika Anda keluar lebih dari 45 menit, mematikan AC tetap lebih hemat secara total konsumsi kilowatt per hour (kWh)."
-    ],
-    createdAt: "2026-10-03 07:15",
-    status: "DRAFT",
-    generatedBy: "Dify AI Engine (v1.0)",
-  },
-  {
-    id: "draft-dify-2",
-    type: "PANDUAN_BELANJA",
-    title: "5 Rekomendasi Timbangan Badan Digital Presisi dengan Pengukur Kadar Lemak (BIA) Terbaik 2026",
-    category: "Gaya Hidup",
-    summary: "Riset 12 smart scale Bluetooth dengan sensor elektroda Bioelectrical Impedance Analysis akurat untuk tracking diet dan kebugaran.",
-    content: [
-      "Menimbang berat badan saja tidak cukup untuk melihat progres kesehatan. Smart scale modern mengukur massa otot, lemak visceral, kadar air, dan BMR menggunakan arus mikro aman.",
-      "Pilihan utama kami jatuh pada smart scale dengan 4 elektroda stainless steel 304 yang terintegrasi langsung dengan Apple Health dan Google Fit."
-    ],
-    productRecommendations: [
-      {
-        name: "Xiaomi Mi Body Composition Scale S400",
-        price: "Rp 249.000",
-        specs: "BIA Dual-Frequency, 25 Metrik Tubuh, Bluetooth 5.0, Baterai 180 Hari",
-        pros: "Aplikasi Mi Fitness sangat rapi dan sinkronisasi instan",
-        cons: "Belum mendukung pengisian daya Type-C (masih memakai 3x baterai AAA)",
-        shopeeUrl: "https://shopee.co.id",
-        tokopediaUrl: "https://tokopedia.com",
-      },
-    ],
-    createdAt: "2026-10-03 06:40",
-    status: "DRAFT",
-    generatedBy: "Dify AI Engine (v1.0)",
-  },
-];
+export const INITIAL_DIFY_DRAFTS: DifyDraft[] = [];
 
 export function getDifyDrafts(): DifyDraft[] {
   if (typeof window === "undefined") {
-    return INITIAL_DIFY_DRAFTS;
+    return [];
   }
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) {
-      return INITIAL_DIFY_DRAFTS;
-    }
-    const parsed = JSON.parse(stored);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
+    if (stored !== null) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
     }
   } catch (e) {
     console.error("Error reading Dify drafts:", e);
   }
-  return INITIAL_DIFY_DRAFTS;
+  return [];
 }
 
 export function saveDifyDrafts(drafts: DifyDraft[]): void {
@@ -95,7 +56,7 @@ export function saveDifyDrafts(drafts: DifyDraft[]): void {
 
 export function addDifyDraft(
   draft: Omit<DifyDraft, "id" | "createdAt" | "status" | "generatedBy"> & {
-    generatedBy?: "Dify AI Engine (v1.0)" | "Manual Editor";
+    generatedBy?: "Dify AI Engine (v1.0)" | "Dify AI Engine (v2.0)" | "Manual Editor";
   }
 ): DifyDraft {
   const current = getDifyDrafts();
@@ -104,16 +65,22 @@ export function addDifyDraft(
     id: `draft-dify-${Date.now()}`,
     createdAt: new Date().toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" }),
     status: "DRAFT",
-    generatedBy: draft.generatedBy || "Dify AI Engine (v1.0)",
+    generatedBy: draft.generatedBy || "Dify AI Engine (v2.0)",
   };
   const updated = [newDraft, ...current];
   saveDifyDrafts(updated);
   return newDraft;
 }
 
-export function updateDraftStatus(id: string, status: "DRAFT" | "PUBLISHED"): DifyDraft[] {
+export function updateDraftStatus(
+  id: string,
+  status: "DRAFT" | "PUBLISHED",
+  publishedSlug?: string
+): DifyDraft[] {
   const current = getDifyDrafts();
-  const updated = current.map((d) => (d.id === id ? { ...d, status } : d));
+  const updated = current.map((d) =>
+    d.id === id ? { ...d, status, ...(publishedSlug ? { publishedSlug } : {}) } : d
+  );
   saveDifyDrafts(updated);
   return updated;
 }
@@ -124,3 +91,66 @@ export function deleteDifyDraft(id: string): DifyDraft[] {
   saveDifyDrafts(updated);
   return updated;
 }
+
+export function clearAllDifyDrafts(): void {
+  saveDifyDrafts([]);
+}
+
+/**
+ * Mempublikasikan draf Dify secara nyata ke Supabase dan server cache (/api/news).
+ * Memastikan artikel benar-benar aktif di /berita/[slug] tanpa 404.
+ */
+export async function publishDraftToLive(
+  draft: DifyDraft
+): Promise<{ success: boolean; slug: string; error?: string }> {
+  try {
+    const slug = draft.publishedSlug || slugify(draft.title);
+    const isFactCheck =
+      draft.type === "FAKTA_MITOS" || draft.category === "Fakta vs Mitos";
+
+    const articleData = {
+      slug,
+      title: draft.title,
+      category: (draft.category as any) || "Fakta vs Mitos",
+      summary: draft.summary,
+      content: draft.content && draft.content.length > 0 ? draft.content : [draft.summary],
+      image:
+        "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1200&q=80",
+      author: draft.generatedBy || "Dify AI Engine (v2.0)",
+      readTime: "4 menit",
+      isFactCheck,
+      verdictFactCheck: isFactCheck ? ("FAKTA" as const) : undefined,
+      quickTakeaway: draft.summary,
+      isTrending: true,
+      tiktokUrl: draft.productRecommendations?.[0]?.tiktokUrl || undefined,
+    };
+
+    // 1. Simpan ke local cache via saveArticle
+    saveArticle(articleData);
+
+    // 2. Simpan secara nyata ke Supabase Database & server cache via POST /api/news
+    const res = await fetch("/api/news", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(articleData),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.warn("Gagal sinkronisasi /api/news saat publish draft:", err);
+    }
+
+    // 3. Update status draft ke PUBLISHED beserta slug resminya
+    updateDraftStatus(draft.id, "PUBLISHED", slug);
+
+    return { success: true, slug };
+  } catch (err: any) {
+    console.error("Error publishing Dify draft:", err);
+    return {
+      success: false,
+      slug: "",
+      error: err?.message || "Gagal mempublikasikan draft.",
+    };
+  }
+}
+
