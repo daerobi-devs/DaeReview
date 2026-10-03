@@ -133,29 +133,34 @@ workflow:
         title: Start Lab Assignment
         type: start
         variables:
-        - label: Nama Perangkat / Gadget
+        - label: Nama Produk / Barang / Gadget / Topik Ulasan
           max_length: 255
           options: []
           required: true
           type: text-input
           variable: product_name
-        - label: Tautan Toko / Marketplace (Shopee/Tokopedia)
+        - label: Tautan Toko / Marketplace (Shopee/Tokopedia/Toko Online)
           max_length: 500
           options: []
           required: false
           type: text-input
           variable: marketplace_url
-        - label: Kategori Perangkat
+        - label: Kategori Produk (Universal)
           max_length: 100
           options:
-          - Gadget
-          - Smart Home
-          - Audio & Setup
-          - Tips Hemat
+          - Gadget & Teknologi
+          - Smartphone & Komputer
+          - Audio, TWS & Speaker
+          - Smart Home & Elektronik
+          - Peralatan Rumah & Dapur
+          - Gaya Hidup & Hobi
+          - Software & Aplikasi AI
+          - Tren Belanja & Promo
+          - Tips & Panduan Hemat
           required: false
           type: select
           variable: category
-        - label: Perkiraan Harga di Indonesia (Opsional)
+        - label: Perkiraan Harga / Budget di Indonesia (Opsional)
           max_length: 100
           options: []
           required: false
@@ -425,10 +430,10 @@ workflow:
                   title_match = re.search(r'"title"\s*:\s*"([^"]+)"', cleaned)
                   data["title"] = title_match.group(1) if title_match else "Ulasan Hardware DaeReview Lab"
                   data["summary"] = "Audit perangkat independen oleh Tim 2 Product Lab DaeReview."
-                  data["category"] = "Gadget"
+                  data["category"] = "Gadget & Teknologi"
                   data["content"] = cleaned
 
-              title = data.get("title", "Review Gadget DaeReview Lab").strip()
+              title = data.get("title", "Review Produk DaeReview Lab").strip()
               raw_slug = data.get("slug") or ""
               slug = re.sub(r'[^a-zA-Z0-9-]', '', raw_slug.lower().replace(' ', '-'))
               if not slug:
@@ -448,7 +453,7 @@ workflow:
                   "title": title,
                   "slug": slug,
                   "summary": summary_text,
-                  "category": data.get("category", "Gadget"),
+                  "category": data.get("category", "Gadget & Teknologi"),
                   "author": data.get("author", "Tim Riset Hardware DaeReview"),
                   "division": "Tim 2: DaeReview Product Lab",
                   "readTime": data.get("readTime", "6 menit"),

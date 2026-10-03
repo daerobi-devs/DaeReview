@@ -3,11 +3,14 @@ import fs from "fs";
 import path from "path";
 import { NewsArticle } from "@/data/mockData";
 import { supabaseAdmin } from "@/lib/supabase";
+import { getPendingDispatch } from "@/lib/dispatchStore";
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8810761979:AAFTbAVxgfarUaqN7JBPmVc9liWFKjPMR4o";
 const AUTHORIZED_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "7045828398";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://daereview.daeroom.my.id";
 const DIFY_SERVER_URL = process.env.DIFY_SERVER_URL || "https://dify.daeroom.my.id";
+const DIFY_NEWSROOM_API_KEY = process.env.DIFY_NEWSROOM_API_KEY || "";
+const DIFY_PRODUCT_LAB_API_KEY = process.env.DIFY_PRODUCT_LAB_API_KEY || "";
 const DATA_FILE = path.join(process.cwd(), "src", "data", "custom_news.json");
 
 function readCustomNews(): NewsArticle[] {
@@ -40,11 +43,20 @@ async function sendTelegramMessage(chatId: string | number, text: string, replyM
     };
     if (replyMarkup) payload.reply_markup = replyMarkup;
 
-    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+
+    if (!res.ok) {
+      delete payload.parse_mode;
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    }
   } catch (err) {
     console.error("Gagal kirim pesan Telegram:", err);
   }
@@ -223,19 +235,53 @@ export async function POST(request: Request) {
       }
 
       // Action: Dispatch Topic to Tim 1 (Newsroom)
-      if (data.startsWith("dispatch_news:")) {
-        const topicRaw = data.replace("dispatch_news:", "").trim();
-        const topic = decodeURIComponent(topicRaw);
+      if (data.startsWith("disp_news:") || data.startsWith("dispatch_news:")) {
+        let topic = "";
+        let angle = "";
+        if (data.startsWith("disp_news:")) {
+          const id = data.replace("disp_news:", "").trim();
+          const pending = getPendingDispatch(id);
+          topic = pending?.topic || `Topik Penugasan #${id}`;
+          angle = pending?.angle || "";
+        } else {
+          const topicRaw = data.replace("dispatch_news:", "").trim();
+          topic = decodeURIComponent(topicRaw);
+        }
 
         await answerCallbackQuery(cqId, "🚀 Menugaskan Tim 1: Newsroom...");
+
+        // Opsional: Otomatis picu workflow Dify jika API Key disetel
+        if (DIFY_NEWSROOM_API_KEY) {
+          try {
+            await fetch(`${DIFY_SERVER_URL}/v1/workflows/run`, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${DIFY_NEWSROOM_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                inputs: {
+                  news_topic: topic,
+                  target_audience: "Pembaca Indonesia & Konsumen Cerdas",
+                  depth_level: "Investigatif & Mendalam",
+                },
+                response_mode: "streaming",
+                user: `telegram-${chatId}`,
+              }),
+            });
+          } catch (difyErr) {
+            console.error("Gagal auto-trigger Dify Newsroom:", difyErr);
+          }
+        }
 
         await sendTelegramMessage(
           chatId,
           [
-            `🚀 *[TIM 1: DAEREVIEW NEWSROOM DITUGASKAN]*`,
+            `🚀 *(TIM 1: DAEREVIEW NEWSROOM DITUGASKAN)*`,
             ``,
             `📌 *Topik Berita:*`,
-            `_${topic}_`,
+            `${topic}`,
+            angle ? `🎯 *Sudut Pandang:* ${angle}` : "",
             ``,
             `🤖 *Tahapan Redaksi Otomatis Sedang Berjalan:*`,
             `1️⃣ *Trend & Fact Scout:* Riset DuckDuckGo fakta terkini`,
@@ -244,26 +290,60 @@ export async function POST(request: Request) {
             `4️⃣ *Status:* Akan dikirim ke sini sebagai *DRAFT* untuk persetujuan Anda!`,
             ``,
             `💡 *Info:* Buka Dify di ${DIFY_SERVER_URL} untuk memonitor jalannya agen.`,
-          ].join("\n")
+          ].filter(Boolean).join("\n")
         );
 
         return NextResponse.json({ ok: true });
       }
 
       // Action: Dispatch Topic to Tim 2 (Product Lab)
-      if (data.startsWith("dispatch_product:")) {
-        const topicRaw = data.replace("dispatch_product:", "").trim();
-        const topic = decodeURIComponent(topicRaw);
+      if (data.startsWith("disp_lab:") || data.startsWith("dispatch_product:")) {
+        let topic = "";
+        let angle = "";
+        if (data.startsWith("disp_lab:")) {
+          const id = data.replace("disp_lab:", "").trim();
+          const pending = getPendingDispatch(id);
+          topic = pending?.topic || `Produk Penugasan #${id}`;
+          angle = pending?.angle || "";
+        } else {
+          const topicRaw = data.replace("dispatch_product:", "").trim();
+          topic = decodeURIComponent(topicRaw);
+        }
 
         await answerCallbackQuery(cqId, "🔬 Menugaskan Tim 2: Product Lab...");
+
+        // Opsional: Otomatis picu workflow Dify jika API Key disetel
+        if (DIFY_PRODUCT_LAB_API_KEY) {
+          try {
+            await fetch(`${DIFY_SERVER_URL}/v1/workflows/run`, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${DIFY_PRODUCT_LAB_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                inputs: {
+                  product_name: topic,
+                  primary_category: "Gadget & Teknologi",
+                  comparison_benchmark: "Standar Pasar",
+                },
+                response_mode: "streaming",
+                user: `telegram-${chatId}`,
+              }),
+            });
+          } catch (difyErr) {
+            console.error("Gagal auto-trigger Dify Product Lab:", difyErr);
+          }
+        }
 
         await sendTelegramMessage(
           chatId,
           [
-            `🔬 *[TIM 2: DAEREVIEW PRODUCT LAB DITUGASKAN]*`,
+            `🔬 *(TIM 2: DAEREVIEW PRODUCT LAB DITUGASKAN)*`,
             ``,
-            `📦 *Target Gadget / Produk:*`,
-            `_${topic}_`,
+            `📦 *Target Produk / Barang:*`,
+            `${topic}`,
+            angle ? `🎯 *Fokus Uji Lab:* ${angle}` : "",
             ``,
             `⚙️ *Tahapan Pengujian Lab Sedang Berjalan:*`,
             `1️⃣ *Hardware Auditor:* Uji klaim brosur vs realita benchmark`,
@@ -272,7 +352,7 @@ export async function POST(request: Request) {
             `4️⃣ *Status:* Akan dikirim ke sini sebagai *DRAFT* untuk persetujuan Anda!`,
             ``,
             `💡 *Info:* Buka Dify di ${DIFY_SERVER_URL} untuk memonitor jalannya agen.`,
-          ].join("\n")
+          ].filter(Boolean).join("\n")
         );
 
         return NextResponse.json({ ok: true });

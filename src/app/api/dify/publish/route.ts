@@ -100,6 +100,11 @@ async function fetchOgImage(urlStr: string): Promise<string | null> {
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8810761979:AAFTbAVxgfarUaqN7JBPmVc9liWFKjPMR4o";
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "7045828398";
 
+function cleanTgText(text: string): string {
+  if (!text) return "";
+  return text.replace(/\[/g, "(").replace(/\]/g, ")");
+}
+
 async function notifyTelegram(
   article: NewsArticle,
   theCatch?: string,
@@ -114,20 +119,25 @@ async function notifyTelegram(
       ? "🟡 DRAFT (Menunggu Persetujuan CEO)"
       : "🟢 SUDAH TAYANG LIVE";
 
+    const titleClean = cleanTgText(article.title);
+    const summaryClean = cleanTgText(article.summary);
+    const theCatchClean = cleanTgText(theCatch || "");
+    const divClean = cleanTgText(divisionName);
+
     const lines = [
-      isDraft ? `🟡 *[DRAF SIAP DIREVIU - DAE REVIEW]*` : `📢 *[ARTIKEL RESMI TERBIT]*`,
+      isDraft ? `🟡 *(DRAF SIAP DIREVIU - DAE REVIEW)*` : `📢 *(ARTIKEL RESMI TERBIT)*`,
       ``,
-      `🏢 *Divisi Penggarap:* ${divisionName}`,
+      `🏢 *Divisi Penggarap:* ${divClean}`,
       `📌 *Judul:*`,
-      `${article.title}`,
+      `${titleClean}`,
       ``,
       `🏷️ *Kategori:* ${article.category} • ⏱️ ${article.readTime}`,
       `📊 *Status:* ${statusLabel}`,
-      theCatch ? `⚠️ *The Catch:* _${theCatch}_` : "",
+      theCatchClean ? `⚠️ *The Catch:* _${theCatchClean}_` : "",
       productLink ? `🔗 *Sumber Link:* ${productLink}` : "",
       ``,
       `💡 *Ringkasan:*`,
-      `${article.summary}`,
+      `${summaryClean}`,
     ].filter(Boolean);
 
     const message = lines.join("\n");
@@ -186,22 +196,52 @@ async function notifyTelegram(
           }),
         });
         if (photoRes.ok) return;
+
+        // Fallback foto tanpa Markdown jika gagal parse
+        const photoPlain = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: TELEGRAM_CHAT_ID,
+            photo: article.image,
+            caption: message.slice(0, 1024),
+            reply_markup: replyMarkup,
+          }),
+        });
+        if (photoPlain.ok) return;
       } catch {
         // fallback ke pesan teks
       }
     }
 
     // 2. Fallback pesan teks biasa
-    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: TELEGRAM_CHAT_ID,
-        text: message,
-        parse_mode: "Markdown",
-        reply_markup: replyMarkup,
-      }),
-    });
+    try {
+      const textRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: TELEGRAM_CHAT_ID,
+          text: message,
+          parse_mode: "Markdown",
+          reply_markup: replyMarkup,
+        }),
+      });
+
+      if (!textRes.ok) {
+        // Fallback teks tanpa parse_mode
+        await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: TELEGRAM_CHAT_ID,
+            text: message,
+            reply_markup: replyMarkup,
+          }),
+        });
+      }
+    } catch (msgErr) {
+      console.error("Gagal kirim Telegram sendMessage:", msgErr);
+    }
   } catch (e) {
     console.error("Gagal mengirim notifikasi Telegram:", e);
   }

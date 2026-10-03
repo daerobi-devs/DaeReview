@@ -82,10 +82,27 @@ export function updateArticle(
 
   if (!existing) {
     const mock = MOCK_NEWS.find((m) => m.id === id);
-    if (!mock) return null;
+    const base: NewsArticle = mock || {
+      id,
+      title: updatedData.title || "Artikel Baru",
+      slug: updatedData.slug || `artikel-${id}`,
+      category: updatedData.category || "Teknologi & AI",
+      date: new Intl.DateTimeFormat("id-ID", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }).format(new Date()),
+      readTime: "4 menit",
+      author: updatedData.author || "Tim Riset DaeReview",
+      image: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80",
+      summary: "",
+      content: [],
+      isCustom: true,
+      status: updatedData.status || "draft",
+    };
 
     const newOverride: NewsArticle = {
-      ...mock,
+      ...base,
       ...updatedData,
       id,
       isCustom: true,

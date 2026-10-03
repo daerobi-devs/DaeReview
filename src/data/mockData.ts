@@ -22,11 +22,31 @@ export interface Product {
   isCustom?: boolean;
 }
 
+export type NewsCategoryType =
+  | "Fakta vs Mitos"
+  | "Teknologi & AI"
+  | "Gadget & Teknologi"
+  | "Gadget"
+  | "Smartphone & Komputer"
+  | "Audio, TWS & Speaker"
+  | "Audio & Setup"
+  | "Smart Home & Elektronik"
+  | "Smart Home"
+  | "Peralatan Rumah & Dapur"
+  | "Peralatan Dapur"
+  | "Gaya Hidup & Hobi"
+  | "Tren Belanja & Promo"
+  | "Tren Belanja"
+  | "Tips & Panduan Hemat"
+  | "Tips Hemat"
+  | "Software & Aplikasi AI"
+  | string;
+
 export interface NewsArticle {
   id: string;
   title: string;
   slug: string;
-  category: "Fakta vs Mitos" | "Teknologi & AI" | "Gadget" | "Tren Belanja" | "Smart Home" | "Tips Hemat" | "Audio & Setup" | "Peralatan Dapur";
+  category: NewsCategoryType;
   date: string;
   readTime: string;
   image: string;

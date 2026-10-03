@@ -133,13 +133,30 @@ workflow:
         title: Start Assignment
         type: start
         variables:
-        - label: Topik atau Judul Isu Berita
+        - label: Topik, Judul Isu, atau Masukan Berita
           max_length: 255
           options: []
           required: true
           type: text-input
           variable: topic
-        - label: Tautan Sumber (Opsional)
+        - label: Kategori Berita (Universal)
+          max_length: 100
+          options:
+          - Fakta vs Mitos
+          - Teknologi & AI
+          - Gadget & Teknologi
+          - Smartphone & Komputer
+          - Audio, TWS & Speaker
+          - Smart Home & Elektronik
+          - Peralatan Rumah & Dapur
+          - Gaya Hidup & Hobi
+          - Tren Belanja & Promo
+          - Tips & Panduan Hemat
+          - Software & Aplikasi AI
+          required: false
+          type: select
+          variable: category
+        - label: Tautan Sumber / Referensi (Opsional)
           max_length: 500
           options: []
           required: false
@@ -402,7 +419,7 @@ workflow:
           import json
           import re
 
-          def main(llm_text: str, source_url: str = "") -> dict:
+          def main(llm_text: str, source_url: str = "", category_input: str = "") -> dict:
               cleaned = llm_text.strip() if llm_text else ""
               match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', cleaned)
               if match:
@@ -415,7 +432,7 @@ workflow:
                   title_match = re.search(r'"title"\s*:\s*"([^"]+)"', cleaned)
                   data["title"] = title_match.group(1) if title_match else "Laporan Khusus Redaksi DaeReview"
                   data["summary"] = "Liputan investigasi terkini oleh Tim 1 Newsroom DaeReview."
-                  data["category"] = "Teknologi & AI"
+                  data["category"] = category_input or "Teknologi & AI"
                   data["content"] = cleaned
 
               title = data.get("title", "Kabar Terkini Teknologi DaeReview").strip()
@@ -426,12 +443,13 @@ workflow:
 
               summary_text = data.get("summary") or "Liputan teknologi terkini oleh DaeReview Newsroom."
               eff_source = data.get("source_url") or source_url or ""
+              eff_cat = category_input.strip() if category_input and category_input.strip() else data.get("category", "Teknologi & AI")
 
               payload = {
                   "title": title,
                   "slug": slug,
                   "summary": summary_text,
-                  "category": data.get("category", "Teknologi & AI"),
+                  "category": eff_cat,
                   "author": data.get("author", "Tim Redaksi DaeReview"),
                   "division": "Tim 1: DaeReview Newsroom",
                   "readTime": data.get("readTime", "4 menit"),
@@ -471,6 +489,10 @@ workflow:
           - '17909910000001'
           - source_url
           variable: source_url
+        - value_selector:
+          - '17909910000001'
+          - category
+          variable: category_input
       height: 120
       id: '17909910000006'
       position:

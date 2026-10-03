@@ -31,7 +31,7 @@ import {
   Table,
   Link as LinkIcon
 } from "lucide-react";
-import { MOCK_NEWS, MOCK_PRODUCTS, NewsArticle, Product } from "@/data/mockData";
+import { MOCK_NEWS, MOCK_PRODUCTS, NewsArticle, Product, NewsCategoryType } from "@/data/mockData";
 import {
   getAllArticles,
   saveArticle,
@@ -43,15 +43,19 @@ import {
 import { getAllProducts, PRODUCTS_UPDATE_EVENT } from "@/lib/dynamicProducts";
 import { compressImage, CompressResult } from "@/lib/imageCompressor";
 
-type NewsCategory =
-  | "Fakta vs Mitos"
-  | "Teknologi & AI"
-  | "Gadget"
-  | "Tren Belanja"
-  | "Smart Home"
-  | "Tips Hemat"
-  | "Audio & Setup"
-  | "Peralatan Dapur";
+export const UNIVERSAL_CATEGORIES: string[] = [
+  "Teknologi & AI",
+  "Gadget & Teknologi",
+  "Smartphone & Komputer",
+  "Audio, TWS & Speaker",
+  "Smart Home & Elektronik",
+  "Peralatan Rumah & Dapur",
+  "Gaya Hidup & Hobi",
+  "Fakta vs Mitos",
+  "Tren Belanja & Promo",
+  "Tips & Panduan Hemat",
+  "Software & Aplikasi AI"
+];
 
 export default function AdminBeritaPage() {
   const [activeTab, setActiveTab] = useState<"list" | "create">("list");
@@ -68,7 +72,8 @@ export default function AdminBeritaPage() {
   // Form States
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
-  const [category, setCategory] = useState<NewsCategory>("Teknologi & AI");
+  const [category, setCategory] = useState<NewsCategoryType>("Teknologi & AI");
+  const [status, setStatus] = useState<"published" | "draft">("published");
   const [author, setAuthor] = useState("Tim Riset DaeReview");
   const [readTime, setReadTime] = useState("4 menit");
   const [summary, setSummary] = useState("");
@@ -183,7 +188,7 @@ export default function AdminBeritaPage() {
 
     try {
       setIsLoadingArticles(true);
-      const res = await fetch("/api/news");
+      const res = await fetch("/api/news?include_drafts=true");
       if (res.ok) {
         const data = await res.json();
         if (data.articles && Array.isArray(data.articles)) {
@@ -223,7 +228,7 @@ export default function AdminBeritaPage() {
   };
 
   // Handle category change
-  const handleCategoryChange = (cat: NewsCategory) => {
+  const handleCategoryChange = (cat: NewsCategoryType) => {
     setCategory(cat);
     if (cat === "Fakta vs Mitos") {
       setIsFactCheck(true);
@@ -311,6 +316,7 @@ export default function AdminBeritaPage() {
       quickTakeaway:
         (isFactCheck || category === "Fakta vs Mitos") ? quickTakeaway.trim() || summary.trim() : undefined,
       tiktokUrl: tiktokUrl.trim() || undefined,
+      status: status || "published",
     };
 
     if (isEditing && editingId) {
@@ -357,10 +363,18 @@ export default function AdminBeritaPage() {
     setTitle(article.title);
     setSlug(article.slug);
     setCategory(article.category);
+    setStatus(article.status || "published");
     setAuthor(article.author || "Tim Riset DaeReview");
     setReadTime(article.readTime || "4 menit");
     setSummary(article.summary || "");
-    setContentRaw((article.content || []).join("\n\n"));
+
+    const rawContent = Array.isArray(article.content)
+      ? article.content.join("\n\n")
+      : typeof article.content === "string"
+      ? article.content
+      : "";
+    setContentRaw(rawContent);
+
     setImageDataUrl(article.image || "");
     setIsTrending(article.isTrending || false);
     setRelatedProductId(article.relatedProductId || "");
@@ -377,12 +391,34 @@ export default function AdminBeritaPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const handlePublishArticle = async (article: NewsArticle) => {
+    try {
+      updateArticle(article.id, { status: "published" });
+      setArticles((prev) =>
+        prev.map((a) => (a.id === article.id ? { ...a, status: "published" } : a))
+      );
+
+      await fetch("/api/news", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: article.id, slug: article.slug, status: "published" }),
+      });
+
+      setSuccessToast(`Artikel "${article.title}" berhasil DITAYANGKAN live!`);
+      setTimeout(() => setSuccessToast(null), 4000);
+      loadArticles();
+    } catch (err) {
+      console.error("Gagal menayangkan artikel:", err);
+    }
+  };
+
   const handleCancelEdit = () => {
     setIsEditing(false);
     setEditingId(null);
     setTitle("");
     setSlug("");
     setCategory("Teknologi & AI");
+    setStatus("published");
     setIsFactCheck(false);
     setSummary("");
     setContentRaw("");
@@ -414,14 +450,7 @@ export default function AdminBeritaPage() {
 
   const categoriesList = [
     "Semua",
-    "Fakta vs Mitos",
-    "Teknologi & AI",
-    "Gadget",
-    "Tren Belanja",
-    "Smart Home",
-    "Tips Hemat",
-    "Audio & Setup",
-    "Peralatan Dapur",
+    ...UNIVERSAL_CATEGORIES,
   ];
 
   const filteredNews = articles.filter((item) => {
@@ -601,9 +630,21 @@ export default function AdminBeritaPage() {
                           </span>
                         )}
 
+                        {article.status === "draft" ? (
+                          <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-300 text-[10px] font-extrabold flex items-center gap-1 animate-pulse">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                            DRAF MENUNGGU PERSETUJUAN
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-extrabold flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            TAYANG LIVE
+                          </span>
+                        )}
+
                         {article.isCustom ? (
                           <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-extrabold">
-                            ✍️ Dibuat Manual
+                            ✍️ Custom
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-semibold">
@@ -638,6 +679,17 @@ export default function AdminBeritaPage() {
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                    {article.status === "draft" && (
+                      <button
+                        onClick={() => handlePublishArticle(article)}
+                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
+                        title="Setujui dan tayangkan artikel ke publik sekarang"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Tayangkan</span>
+                      </button>
+                    )}
+
                     <Link
                       href={`/berita/${article.slug}`}
                       target="_blank"
@@ -861,25 +913,49 @@ export default function AdminBeritaPage() {
               </div>
             </div>
 
-            {/* Kategori & Spesifik Fakta vs Mitos */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+            {/* Kategori, Status & Penulis */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                   Kategori Konten
                 </label>
                 <select
                   value={category}
-                  onChange={(e) => handleCategoryChange(e.target.value as NewsCategory)}
+                  onChange={(e) => handleCategoryChange(e.target.value as NewsCategoryType)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-hidden focus:border-blue-900 focus:bg-white cursor-pointer"
                 >
                   <option value="Fakta vs Mitos">🔍 Fakta vs Mitos (Universal Debunking)</option>
                   <option value="Teknologi & AI">🤖 Teknologi & AI</option>
-                  <option value="Gadget">📱 Gadget & Setup</option>
-                  <option value="Tren Belanja">📈 Tren Belanja</option>
-                  <option value="Smart Home">🏠 Smart Home & Elektronik</option>
-                  <option value="Tips Hemat">💡 Tips Hemat & Beli Cerdas</option>
-                  <option value="Audio & Setup">🎧 Audio & TWS</option>
-                  <option value="Peralatan Dapur">🍳 Peralatan Dapur</option>
+                  <option value="Gadget & Teknologi">📱 Gadget & Teknologi</option>
+                  <option value="Smartphone & Komputer">💻 Smartphone & Komputer</option>
+                  <option value="Audio, TWS & Speaker">🎧 Audio, TWS & Speaker</option>
+                  <option value="Smart Home & Elektronik">🏠 Smart Home & Elektronik</option>
+                  <option value="Peralatan Rumah & Dapur">🍳 Peralatan Rumah & Dapur</option>
+                  <option value="Gaya Hidup & Hobi">🛹 Gaya Hidup & Hobi</option>
+                  <option value="Tren Belanja & Promo">📈 Tren Belanja & Promo</option>
+                  <option value="Tips & Panduan Hemat">💡 Tips & Panduan Hemat</option>
+                  <option value="Software & Aplikasi AI">⚡ Software & Aplikasi AI</option>
+                  {/* Fallback legacy */}
+                  <option value="Gadget">📱 Gadget & Setup (Legacy)</option>
+                  <option value="Tren Belanja">📈 Tren Belanja (Legacy)</option>
+                  <option value="Smart Home">🏠 Smart Home (Legacy)</option>
+                  <option value="Tips Hemat">💡 Tips Hemat (Legacy)</option>
+                  <option value="Audio & Setup">🎧 Audio & Setup (Legacy)</option>
+                  <option value="Peralatan Dapur">🍳 Peralatan Dapur (Legacy)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Status Publikasi
+                </label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as "published" | "draft")}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-hidden focus:border-blue-900 focus:bg-white cursor-pointer"
+                >
+                  <option value="published">🟢 TAYANG LIVE (Bisa Dilihat Publik)</option>
+                  <option value="draft">🟡 DRAF (Internal Redaksi / Review)</option>
                 </select>
               </div>
 

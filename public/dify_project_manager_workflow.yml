@@ -95,9 +95,21 @@ workflow:
         isInIteration: false
         isInLoop: false
         sourceType: code
-        targetType: end
-      id: edge-code-to-end
+        targetType: http-request
+      id: edge-code-to-http
       source: '17909930000005'
+      sourceHandle: source
+      target: '17909930000007'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: end
+      id: edge-http-to-end
+      source: '17909930000007'
       sourceHandle: source
       target: '17909930000006'
       targetHandle: target
@@ -110,7 +122,7 @@ workflow:
         title: Start Command CEO
         type: start
         variables:
-        - label: Pesan, Ide Topik, atau Tautan Link dari CEO
+        - label: Ide Topik, Tautan Link Produk/Berita, atau Masukan dari CEO
           max_length: 500
           options: []
           required: true
@@ -399,6 +411,46 @@ workflow:
       width: 243
       zIndex: 0
     - data:
+        authorization:
+          config:
+            api_key: dae_dify_autonomous_webhook_secret_key
+            header: Authorization
+            type: bearer
+          type: api-key
+        body:
+          data: '{{#17909930000005.json_dispatch#}}'
+          type: json
+        headers: 'Content-Type: application/json
+
+          User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) DaeReview-ProjectManager/1.0'
+        method: post
+        retry_config:
+          max_retries: 2
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        timeout:
+          connect_timeout: 10
+          read_timeout: 30
+          write_timeout: 10
+        title: Kirim Instruksi Dispatch ke Telegram CEO
+        type: http-request
+        url: https://daereview.daeroom.my.id/api/dify/dispatch
+      height: 105
+      id: '17909930000007'
+      position:
+        x: 1580
+        y: 280
+      positionAbsolute:
+        x: 1580
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+      zIndex: 0
+    - data:
         outputs:
         - value_selector:
           - '17909930000005'
@@ -426,20 +478,25 @@ workflow:
           value_type: string
           variable: telegram_message
         - value_selector:
-          - '17909930000005'
-          - json_dispatch
+          - '17909930000007'
+          - body
           value_type: string
-          variable: json_dispatch
+          variable: dispatch_response
+        - value_selector:
+          - '17909930000007'
+          - status_code
+          value_type: number
+          variable: dispatch_status
         selected: false
-        title: Keputusan Penugasan Redaksi Siap
+        title: Keputusan Penugasan Redaksi Berhasil Dikirim
         type: end
       height: 140
       id: '17909930000006'
       position:
-        x: 1580
+        x: 1880
         y: 280
       positionAbsolute:
-        x: 1580
+        x: 1880
         y: 280
       selected: false
       sourcePosition: right
