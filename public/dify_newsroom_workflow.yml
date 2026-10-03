@@ -332,10 +332,10 @@ workflow:
             4. Dampak & Respon Publik: Kutipan resmi, reaksi komunitas tech, atau analisa implikasi hukum/ekonomi di Indonesia.
             5. Atribusi Jurnalistik Riil: Cantumkan media atau rujukan terpercaya di dalam narasi kalimat (misalnya: "Sebagaimana dilaporkan Reuters...", "Menurut penelusuran Kompas Tekno...", "Berdasarkan siaran pers resmi...").
             6. Prospek ke Depan: Apa langkah selanjutnya yang harus diperhatikan pembaca.
-            7. Subjudul Sumber & Rujukan Berita (WAJIB di akhir artikel):
-               ## Sumber & Rujukan Berita
-               Sertakan daftar media dan tautan rujukan yang diriset oleh Scout dalam format markdown:
-               - [Nama Media / Judul Laporan](URL Rujukan)
+            7. Sitasi Inline (WAJIB): Selipkan tautan rujukan LANGSUNG di akhir kalimat yang memuat fakta tersebut,
+               dengan format markdown [Nama Media](URL Rujukan). Contoh: Harga naik 12 persen sejak Agustus [Detik](https://detik.com/...).
+               Website otomatis menampilkannya sebagai chip kecil berlogo media di dalam kalimat.
+               DILARANG membuat subjudul atau daftar terpisah "Sumber & Rujukan Berita" di akhir artikel.
             
             ATURAN KERAS (NEGATIVE PROMPTS):
             ❌ DILARANG KERAS menyertakan tabel belanja "Klaim vs Realita Spek".
@@ -397,7 +397,7 @@ workflow:
               "category": "Teknologi & AI",
               "summary": "Ringkasan tajam 1-2 kalimat untuk kartu berita.",
               "readTime": "4 menit",
-              "content": "Paragraf 1 lead...\n\n## Subjudul Berita\n\nParagraf 2 konteks...\n\n## Sumber & Rujukan Berita\n- [Nama Media](https://...)",
+              "content": "Paragraf 1 lead...\n\n## Subjudul Berita\n\nParagraf 2 konteks... [Nama Media](https://...)",
               "author": "Tim Redaksi DaeReview",
               "division": "Tim 1: DaeReview Newsroom",
               "status": "draft",

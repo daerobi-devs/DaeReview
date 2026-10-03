@@ -99,23 +99,80 @@ type ContentBlock =
   | { type: "list"; items: string[] }
   | { type: "paragraph"; text: string };
 
+function escapeAttr(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function getDomain(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Chip sitasi inline ala Perplexity: logo (favicon) situs rujukan + nama media,
+ * menyelinap langsung di dalam kalimat, bukan blok terpisah.
+ */
+function citationChip(label: string, url: string): string {
+  const domain = getDomain(url);
+  const safeUrl = escapeAttr(url);
+  const shortLabel = (label || domain).replace(/^https?:\/\//, "").slice(0, 28);
+  const favicon = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
+  return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer nofollow" title="${escapeAttr(label || domain)} — ${escapeAttr(domain)}" class="not-prose inline-flex items-center gap-1 align-middle mx-0.5 pl-1 pr-2 py-0.5 rounded-full bg-slate-100 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-[11px] sm:text-xs font-semibold text-slate-600 hover:text-blue-700 no-underline leading-none transition-colors whitespace-nowrap"><img src="${favicon}" alt="" width="14" height="14" loading="lazy" class="w-3.5 h-3.5 rounded-full bg-white shrink-0" />${escapeAttr(shortLabel)}</a>`;
+}
+
 function formatInlineMarkdown(text: string): string {
   return text
     .replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold text-slate-900">$1</strong>')
     .replace(/__([^_]+)__/g, '<strong class="font-bold text-slate-900">$1</strong>')
-    .replace(/\*([^*]+)\*/g, '<em class="italic text-slate-800">$1</em>')
-    .replace(/_([^_]+)_/g, '<em class="italic text-slate-800">$1</em>')
-    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer nofollow" class="text-blue-700 underline font-semibold hover:text-blue-900">$1</a>')
+    .replace(/\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g, (_m, label: string, url: string) => citationChip(label, url))
+    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="text-blue-700 underline font-semibold hover:text-blue-900">$1</a>')
+    .replace(/(^|[\s(])\*([^*\s][^*]*)\*/g, '$1<em class="italic text-slate-800">$2</em>')
     .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 text-sm font-mono">$1</code>');
 }
 
-function parseArticleContent(content: string[] | string): ContentBlock[] {
+const SOURCE_HEADING_RE = /^(sumber|rujukan|referensi)(\s*(&|dan)\s*(rujukan|referensi|sumber))?(\s+berita)?\s*:?$/i;
+
+/**
+ * Selipkan sumber yang belum disitasi ke paragraf yang menyebut nama medianya
+ * (atau ke paragraf pembuka) sebagai chip inline.
+ */
+function injectInlineSources(blocks: ContentBlock[], sources: { name?: string; url: string }[]): ContentBlock[] {
+  const fullText = blocks.map((b) => ("text" in b ? b.text : "items" in b ? b.items.join(" ") : "")).join(" ");
+  const pending = sources.filter((s) => s?.url && !fullText.includes(s.url));
+  if (pending.length === 0) return blocks;
+
+  const result = blocks.map((b) => ({ ...b })) as ContentBlock[];
+  const paragraphIdx = result.map((b, i) => (b.type === "paragraph" ? i : -1)).filter((i) => i >= 0);
+  if (paragraphIdx.length === 0) return blocks;
+
+  for (const src of pending) {
+    const name = (src.name || getDomain(src.url)).trim();
+    const keyword = name.split(/\s+/)[0]?.toLowerCase() || "";
+    let target = paragraphIdx.find((i) => {
+      const t = (result[i] as { text: string }).text.toLowerCase();
+      return keyword.length > 2 && t.includes(keyword);
+    });
+    if (target === undefined) target = paragraphIdx[0];
+    const block = result[target] as { type: "paragraph"; text: string };
+    block.text = `${block.text} [${name}](${src.url})`;
+  }
+  return result;
+}
+
+function parseArticleContent(
+  content: string[] | string,
+  extractedSources: { name?: string; url: string }[] = []
+): ContentBlock[] {
   const fullText = Array.isArray(content) ? content.join("\n\n") : (content || "");
   const lines = fullText.split(/\r?\n/).map((l) => l.trimEnd());
 
   const blocks: ContentBlock[] = [];
   let currentList: string[] = [];
   let currentTable: string[] = [];
+  let inSourceSection = false;
 
   const flushList = () => {
     if (currentList.length > 0) {
@@ -152,6 +209,38 @@ function parseArticleContent(content: string[] | string): ContentBlock[] {
     if (!trimmed) {
       flushList();
       flushTable();
+      continue;
+    }
+
+    // 0. Seksi "Sumber & Rujukan Berita" tidak dirender sebagai blok —
+    //    link-nya dikumpulkan lalu diselipkan inline di paragraf.
+    const headingMatch = trimmed.match(/^#{1,4}\s+(.*)$/);
+    const headingText = headingMatch ? headingMatch[1].replace(/\*\*/g, "").trim() : "";
+    if (headingMatch) {
+      inSourceSection = SOURCE_HEADING_RE.test(headingText);
+      if (inSourceSection) {
+        flushList();
+        flushTable();
+        continue;
+      }
+    } else if (!inSourceSection && SOURCE_HEADING_RE.test(trimmed.replace(/\*\*/g, "").trim())) {
+      inSourceSection = true;
+      flushList();
+      flushTable();
+      continue;
+    }
+    if (inSourceSection) {
+      const linkRe = /\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g;
+      let m: RegExpExecArray | null;
+      let found = false;
+      while ((m = linkRe.exec(trimmed)) !== null) {
+        extractedSources.push({ name: m[1], url: m[2] });
+        found = true;
+      }
+      if (!found) {
+        const bare = trimmed.match(/https?:\/\/[^\s)]+/);
+        if (bare) extractedSources.push({ url: bare[0] });
+      }
       continue;
     }
 
@@ -330,6 +419,16 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     notFound();
   }
 
+  // Parse konten + selipkan sumber rujukan sebagai chip inline di dalam paragraf
+  const sectionSources: { name?: string; url: string }[] = [];
+  const parsedBlocks = parseArticleContent(article.content, sectionSources);
+  const allSources = [
+    ...(article.sources || []),
+    ...sectionSources,
+    ...(article.sourceUrl ? [{ name: "", url: article.sourceUrl }] : []),
+  ].filter((s, i, arr) => s?.url && arr.findIndex((x) => x.url === s.url) === i);
+  const contentBlocks = injectInlineSources(parsedBlocks, allSources);
+
   // Find related product if linked (supports custom & Supabase products)
   const relatedProduct = article.relatedProductId
     ? await getProductServer(article.relatedProductId)
@@ -487,7 +586,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
           {/* Article Content Blocks */}
           <article className="prose prose-slate max-w-none text-slate-700 space-y-6 text-base sm:text-lg leading-relaxed font-normal">
-            {parseArticleContent(article.content).map((block, index) => {
+            {contentBlocks.map((block, index) => {
               if (block.type === "h1") {
                 return (
                   <h2
@@ -620,46 +719,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             })}
           </article>
 
-          {/* Box Rujukan Sumber Berita Terverifikasi (Kredibilitas Editorial) */}
-          {((article.sources && article.sources.length > 0) || article.sourceUrl) && (
-            <div className="my-8 p-5 sm:p-6 rounded-2xl bg-slate-50 border border-slate-200/90 shadow-2xs space-y-3">
-              <div className="flex items-center gap-2 text-xs font-black text-slate-800 uppercase tracking-wider">
-                <ShieldCheck className="w-4 h-4 text-blue-600" />
-                <span>Rujukan & Sumber Berita Terverifikasi</span>
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Sebagai komitmen pada jurnalisme berimbang dan transparan, data serta fakta dalam laporan ini dihimpun dan diverifikasi silang dari publikasi rujukan berikut:
-              </p>
-              <div className="flex flex-wrap gap-2.5 pt-1">
-                {article.sources && article.sources.length > 0 ? (
-                  article.sources.map((src, sIdx) => (
-                    <a
-                      key={sIdx}
-                      href={src.url}
-                      target="_blank"
-                      rel="noopener noreferrer nofollow"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 text-slate-800 text-xs sm:text-sm font-semibold transition-all group shadow-2xs"
-                    >
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                      <span className="group-hover:text-blue-700">{src.name || src.url}</span>
-                      <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600" />
-                    </a>
-                  ))
-                ) : article.sourceUrl ? (
-                  <a
-                    href={article.sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer nofollow"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 text-slate-800 text-xs sm:text-sm font-semibold transition-all group shadow-2xs"
-                  >
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                    <span className="group-hover:text-blue-700">Publikasi Sumber Rujukan</span>
-                    <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600" />
-                  </a>
-                ) : null}
-              </div>
-            </div>
-          )}
+          {/* Sumber rujukan kini tampil inline (chip logo) di dalam paragraf artikel */}
 
           {/* Subtle Bottom Share Bar */}
           <div className="my-8 pt-6 border-t border-slate-200 flex items-center justify-between">
