@@ -34,6 +34,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   reactStrictMode: true,
   // Turbopack settings
   turbopack: {
@@ -62,6 +63,18 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "images.tokopedia.net", // Tokopedia CDN
+      },
+      {
+        protocol: "https",
+        hostname: "**.tiktokcdn.com",
+      },
+      {
+        protocol: "https",
+        hostname: "**.byteoversea.com",
+      },
+      {
+        protocol: "https",
+        hostname: "**.ibytedtos.com",
       },
     ],
   },
