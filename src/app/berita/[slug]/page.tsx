@@ -40,6 +40,13 @@ function getArticleServer(slug: string): NewsArticle | undefined {
   return MOCK_NEWS.find((item) => item.slug === slug);
 }
 
+function formatInlineMarkdown(text: string): string {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-slate-900">$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
+    .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 text-sm font-mono">$1</code>');
+}
+
 function getOtherArticlesServer(currentId: string): NewsArticle[] {
   try {
     const dataFile = path.join(process.cwd(), "src", "data", "custom_news.json");
@@ -253,9 +260,41 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
           {/* Article Content Paragraphs */}
           <article className="prose prose-slate max-w-none text-slate-700 space-y-6 text-base sm:text-lg leading-relaxed font-normal">
-            {article.content.map((paragraph, index) => (
-              <p key={index}>{paragraph}</p>
-            ))}
+            {article.content.map((paragraph, index) => {
+              const trimmed = paragraph.trim();
+              if (trimmed.startsWith("### ")) {
+                return (
+                  <h3 key={index} className="text-xl sm:text-2xl font-bold text-slate-900 mt-6 mb-2 tracking-tight">
+                    {trimmed.replace(/^###\s+/, "")}
+                  </h3>
+                );
+              }
+              if (trimmed.startsWith("## ")) {
+                return (
+                  <h2 key={index} className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-8 mb-3 tracking-tight border-b border-slate-100 pb-2">
+                    {trimmed.replace(/^##\s+/, "")}
+                  </h2>
+                );
+              }
+              if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+                return (
+                  <div key={index} className="flex items-start gap-2.5 my-2 ml-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-2.5 shrink-0" />
+                    <span
+                      className="text-slate-700 leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: formatInlineMarkdown(trimmed.replace(/^[-*]\s+/, "")) }}
+                    />
+                  </div>
+                );
+              }
+              return (
+                <p
+                  key={index}
+                  className="leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: formatInlineMarkdown(trimmed) }}
+                />
+              );
+            })}
           </article>
 
           {/* Subtle Bottom Share Bar */}
