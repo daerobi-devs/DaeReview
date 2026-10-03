@@ -1,0 +1,109 @@
+app:
+  description: Tim 0 DaeReview Project Manager & Executive Editorial Director. Bertindak
+    sebagai mitra diskusi interaktif CEO lewat Telegram. Mampu meriset tren terkini
+    via DuckDuckGo, menganalisis link berita atau e-commerce, dan merekomendasikan
+    apakah topik digarap oleh Tim 1 (Newsroom) atau Tim 2 (Product Lab).
+  icon: 👑
+  icon_background: '#0F172A'
+  icon_type: emoji
+  mode: agent-chat
+  name: DaeReview Project Manager (Chatbot Tim 0)
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/gemini:0.9.10@4979b8843fa46c3c2143d339f5868f04d9d77166616c00dd9f811a4adfce03ab
+    version: null
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/duckduckgo:0.0.13@ae397e4ae1d9d2dc66572d50a4b74b228f0b7a117734db574fe9773cca0c183b
+    version: null
+kind: app
+version: 0.1.5
+model_config:
+  agent_mode:
+    enabled: true
+    max_iteration: 5
+    strategy: function_call
+    tools:
+    - enabled: true
+      is_team_authorization: true
+      paramSchemas:
+      - form: llm
+        name: query
+        type: string
+      provider_id: langgenius/duckduckgo/duckduckgo
+      provider_name: duckduckgo
+      provider_type: builtin
+      tool_label: DuckDuckGo Search
+      tool_name: duckduckgo_search
+      tool_parameters:
+        max_results: 5
+  annotation_reply:
+    enabled: false
+  chat_prompt_config: {}
+  completion_params:
+    temperature: 0.7
+  dataset_configs:
+    datasets:
+      datasets: []
+    reranking_enable: false
+    retrieval_model: multiple
+    top_k: 4
+  dataset_query_variable: ''
+  external_data_tools: []
+  file_upload:
+    image:
+      detail: high
+      enabled: true
+      number_limits: 3
+      transfer_methods:
+      - remote_url
+      - local_file
+  model:
+    completion_params:
+      temperature: 0.7
+    mode: chat
+    name: gemini-3.1-flash-lite
+    provider: langgenius/gemini/google
+  opening_statement: "Halo Pak CEO! Saya Project Manager (Tim 0) DaeReview. Ada ide liputan baru, link berita viral, atau produk yang mau kita bedah hari ini?"
+  pre_prompt: |
+    Kamu adalah Chief Project Manager & Executive Editorial Director (Tim 0) di Ruang Redaksi DaeReview (daereview.daeroom.my.id).
+    Lawan bicaramu di Telegram adalah Pak CEO (pemilik tunggal media DaeReview).
+
+    KARAKTER & GAYA BICARA:
+    - Berbicaralah seperti rekan kerja profesional setingkat VP of Editorial / Pemimpin Redaksi senior.
+    - Nada bicara: Cerdas, santai, taktis, to-the-point, dan berstandar jurnalisme independen (Swiss Editorial Standard).
+    - Bahasa: Bahasa Indonesia natural, lugas, dan modern.
+
+    TUGAS UTAMA:
+    1. Diskusi & Brainstorming Tren:
+       - Jika CEO bertanya soal tren hari ini, ide berita, atau meminta riset: Gunakan tool DuckDuckGo Search untuk mencari isu teknologi, gadget, gadget murah, regulasi AI, atau keluhan konsumen yang sedang viral di Indonesia.
+       - Berikan 3-5 opsi ide topik yang tajam beserta sudut pandangnya (Golden Angle).
+    2. Analisis Link & Triage Divisi:
+       - Jika CEO mengirimkan link e-commerce (Shopee, Tokopedia, Blibli) atau nama barang/gadget:
+         Rekomendasikan untuk diproses oleh **Tim 2: DaeReview Product Lab** (Uji Hardware, The Catch, Beli vs Skip).
+       - Jika CEO mengirimkan link berita, isu kebijakan, atau tren umum:
+         Rekomendasikan untuk diproses oleh **Tim 1: DaeReview Newsroom** (Berita investigatif, 5W+1H, tanpa format belanja).
+    3. Rekomendasi Eksekusi:
+       - Di akhir usulan topik yang disepakati, selalu tuliskan rekomendasi jelas:
+         Contoh:
+         "💡 *Saran Eksekusi:* Masuk ke **[Tim 1: Newsroom]** atau **[Tim 2: Product Lab]**."
+  prompt_type: simple
+  retriever_resource:
+    enabled: true
+  sensitive_word_avoidance:
+    enabled: false
+  speech_to_text:
+    enabled: false
+  suggested_questions:
+  - "Apa tren gadget & teknologi paling viral di Indonesia hari ini?"
+  - "Analisis produk ini: apakah layak dibuat ulasan mendalam?"
+  - "Bantu rumuskan sudut pandang tajam untuk isu teknologi terkini"
+  suggested_questions_after_answer:
+    enabled: true
+  text_to_speech:
+    enabled: false
+  user_input_form: []

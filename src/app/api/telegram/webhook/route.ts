@@ -3,12 +3,19 @@ import fs from "fs";
 import path from "path";
 import { NewsArticle } from "@/data/mockData";
 import { supabaseAdmin } from "@/lib/supabase";
-import { getPendingDispatch } from "@/lib/dispatchStore";
+import {
+  getPendingDispatch,
+  getStoredConversationId,
+  saveStoredConversationId,
+  clearStoredConversationId,
+  savePendingDispatch
+} from "@/lib/dispatchStore";
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8810761979:AAFTbAVxgfarUaqN7JBPmVc9liWFKjPMR4o";
 const AUTHORIZED_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "7045828398";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://daereview.daeroom.my.id";
 const DIFY_SERVER_URL = process.env.DIFY_SERVER_URL || "https://dify.daeroom.my.id";
+const DIFY_PM_API_KEY = process.env.DIFY_PM_API_KEY || process.env.DIFY_CHATBOT_API_KEY || "";
 const DIFY_NEWSROOM_API_KEY = process.env.DIFY_NEWSROOM_API_KEY || "";
 const DIFY_PRODUCT_LAB_API_KEY = process.env.DIFY_PRODUCT_LAB_API_KEY || "";
 const DATA_FILE = path.join(process.cwd(), "src", "data", "custom_news.json");
@@ -131,6 +138,61 @@ const TRENDING_TOPICS = [
     summary: "Analisis performa baterai 20 jam dan efisiensi kerja nyata programmer & kreator lokal.",
   },
 ];
+
+async function sendChatAction(chatId: string | number, action = "typing") {
+  try {
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendChatAction`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, action }),
+    });
+  } catch {
+    // Ignore
+  }
+}
+
+async function chatWithDifyPM(
+  query: string,
+  chatId: string | number
+): Promise<{ answer: string; conversationId: string } | null> {
+  if (!DIFY_PM_API_KEY) return null;
+  try {
+    const prevConvId = getStoredConversationId(chatId);
+    const payload: any = {
+      inputs: {},
+      query,
+      response_mode: "blocking",
+      user: `telegram-${chatId}`,
+    };
+    if (prevConvId) payload.conversation_id = prevConvId;
+
+    const res = await fetch(`${DIFY_SERVER_URL}/v1/chat-messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${DIFY_PM_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      console.warn("Dify chat-messages error:", await res.text());
+      return null;
+    }
+
+    const data = await res.json();
+    if (data.conversation_id) {
+      saveStoredConversationId(chatId, data.conversation_id);
+    }
+    return {
+      answer: data.answer || "",
+      conversationId: data.conversation_id || "",
+    };
+  } catch (err) {
+    console.error("Gagal chat dengan Dify PM:", err);
+    return null;
+  }
+}
 
 export async function GET() {
   return NextResponse.json({
@@ -399,6 +461,14 @@ export async function POST(request: Request) {
 
         return NextResponse.json({ ok: true });
       }
+
+      // Action: Reset Chat Session
+      if (data === "reset_chat") {
+        clearStoredConversationId(chatId);
+        await answerCallbackQuery(cqId, "Sesi percakapan direset.");
+        await sendTelegramMessage(chatId, "🔄 *Sesi percakapan direset.* Silakan ketik ide atau topik baru untuk berdiskusi dengan AI Project Manager!");
+        return NextResponse.json({ ok: true });
+      }
     }
 
     // 2. Tangani Pesan Teks Masuk dari CEO
@@ -421,19 +491,16 @@ export async function POST(request: Request) {
         const welcomeText = [
           `👑 *Selamat Datang di DaeReview Assignment Desk!*`,
           ``,
-          `Halo Pak CEO, saya *Project Manager (Tim 0)* ruang redaksi AI DaeReview. Saya siap membantu mengarahkan dan mengeksekusi liputan melalui 2 divisi independen:`,
+          `Halo Pak CEO, saya *Project Manager (Tim 0)* ruang redaksi AI DaeReview didukung *Gemini 3.1 Flash-Lite*. Saya siap membantu mengarahkan liputan dan mengeksekusi ke 2 divisi:`,
           ``,
-          `📰 *Tim 1: DaeReview Newsroom*`,
-          `Fokus: Berita teknologi cepat, isu viral, regulasi, dan investigasi mendalam. Mengalir bebas tanpa embel-embel review belanja atau tabel spek.`,
+          `📰 *Tim 1: DaeReview Newsroom* (Berita & Investigasi)`,
+          `🔬 *Tim 2: DaeReview Product Lab* (Review Mendalam & Uji Gadget)`,
           ``,
-          `🔬 *Tim 2: DaeReview Product Lab*`,
-          `Fokus: Ulasan gadget mendalam, uji klaim vs realita hardware, *The Catch* (kelemahan fatal), siapa yang wajib beli vs siapa yang skip, untuk tab \`/panduan\` dan \`/produk\`.`,
-          ``,
-          `🛠️ *Perintah & Cara Kerja Cepat:*`,
-          `• 💡 Kirim */trend* atau ketik *"ide topik"*: Saya akan berikan 5 tren terhangat hari ini.`,
-          `• 🔗 *Kirim Tautan / Link:* Kirim link berita atau link marketplace (Shopee/Tokopedia), saya otomatis menganalisis dan memberi rekomendasi tim penggarap.`,
-          `• ✍️ *Ketik Ide Mentah:* Ketik topik bebas (misal: _"Review Keyboard Aula F75"_, _"ChatGPT rilis fitur baru"_).`,
-          `• 🛡️ *Draft-First Guard:* Semua hasil tulisan agen disimpan sebagai *DRAFT* terlebih dahulu. Anda yang memegang kendali final untuk menerbitkan lewat tombol Telegram!`,
+          `🛠️ *Fitur & Cara Interaksi:*`,
+          `• 💬 *Ngobrol Bebas:* Ketik apa saja, link berita, atau ide gadget, kita bisa brainstorming langsung seperti chat biasa.`,
+          `• 💡 Kirim */trend*: Saya akan riset live via DuckDuckGo untuk mencari topik terhangat hari ini.`,
+          `• 🔄 Kirim */reset*: Menghapus memori sesi obrolan saat ini untuk memulai topik baru.`,
+          `• 🛡️ *Draft-First Guard:* Semua tulisan agen masuk sebagai *DRAFT*. Anda yang menentukan persetujuan terbit!`,
         ].join("\n");
 
         await sendTelegramMessage(chatId, welcomeText, {
@@ -448,114 +515,109 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      // Command /trend atau Brainstorming
-      if (
-        text === "/trend" ||
-        text.toLowerCase().includes("trend") ||
-        text.toLowerCase().includes("ide") ||
-        text.toLowerCase().includes("topik") ||
-        text.toLowerCase().includes("brainstorm")
-      ) {
-        const trendList = TRENDING_TOPICS.map(
-          (t, i) =>
-            `*${i + 1}. [${t.type === "news" ? "BERITA" : "PRODUK"}] ${t.title}*\n_${t.summary}_\n`
-        ).join("\n");
+      // Command /reset atau /clear
+      if (text === "/reset" || text === "/clear" || text === "/new") {
+        clearStoredConversationId(chatId);
+        await sendTelegramMessage(chatId, "🔄 *Sesi percakapan telah direset.*\nSilakan ketik ide, link berita, atau pertanyaan baru!");
+        return NextResponse.json({ ok: true });
+      }
 
-        const trendText = [
-          `💡 *[RADAR TREN TEKNOLOGI & GADGET HARI INI]*`,
-          ``,
-          trendList,
-          `Pilih topik yang ingin dieksekusi oleh Tim Redaksi:`,
-        ].join("\n");
+      // Tampilkan indikator "sedang mengetik..."
+      await sendChatAction(chatId, "typing");
 
-        await sendTelegramMessage(chatId, trendText, {
+      // Tentukan query yang akan dikirim ke Dify AI Project Manager
+      let queryForDify = text;
+      if (text === "/trend") {
+        queryForDify = "Tolong cari dan berikan 5 tren berita atau gadget teknologi terhangat hari ini menggunakan DuckDuckGo. Berikan ringkasan singkat dan rekomendasi apakah topik tersebut lebih cocok untuk Tim 1 (Newsroom) atau Tim 2 (Product Lab).";
+      }
+
+      // Coba chat dengan Dify Chatbot jika API Key disetel
+      const difyAnswer = await chatWithDifyPM(queryForDify, chatId);
+
+      if (difyAnswer && difyAnswer.answer) {
+        const topicSnippet = text === "/trend" ? "Tren Terkini Hari Ini" : (text.length > 80 ? text.slice(0, 80) + "..." : text);
+        const dispatchId = savePendingDispatch({
+          topic: topicSnippet,
+          angle: "Arahan CEO & Diskusi Project Manager",
+        });
+
+        await sendTelegramMessage(chatId, difyAnswer.answer, {
           inline_keyboard: [
             [
-              { text: "📰 Eksekusi No. 1 (Berita)", callback_data: "pick_trend:0" },
-              { text: "🔬 Eksekusi No. 2 (Produk)", callback_data: "pick_trend:1" },
+              { text: "🚀 Gas Tim 1 (Newsroom)", callback_data: `disp_news:${dispatchId}` },
+              { text: "🔬 Gas Tim 2 (Product Lab)", callback_data: `disp_lab:${dispatchId}` },
             ],
             [
-              { text: "📰 Eksekusi No. 3 (Berita)", callback_data: "pick_trend:2" },
-              { text: "🔬 Eksekusi No. 4 (Produk)", callback_data: "pick_trend:3" },
+              { text: "🔄 Reset Chat", callback_data: "reset_chat" },
+              { text: "✏️ Kelola Draf", url: `${SITE_URL}/admin/berita` },
             ],
-            [{ text: "📰 Eksekusi No. 5 (Berita)", callback_data: "pick_trend:4" }],
           ],
+        });
+
+        return NextResponse.json({ ok: true });
+      }
+
+      // Fallback jika Dify PM belum disetel atau offline
+      if (text === "/trend") {
+        const listText = [
+          `💡 *5 Ide Tren Kurasi Editorial Hari Ini:*`,
+          ``,
+          ...TRENDING_TOPICS.map(
+            (t, i) => `${i + 1}. *[${t.type === "news" ? "BERITA" : "PRODUK"}]* ${t.title}\n_${t.summary}_\n`
+          ),
+          `Silakan pilih topik di bawah untuk menugaskan tim:`,
+        ].join("\n");
+
+        await sendTelegramMessage(chatId, listText, {
+          inline_keyboard: TRENDING_TOPICS.map((t, i) => [
+            {
+              text: `${i + 1}. ${t.type === "news" ? "📰" : "🔬"} ${t.title.slice(0, 36)}...`,
+              callback_data: `pick_trend:${i}`,
+            },
+          ]),
         });
         return NextResponse.json({ ok: true });
       }
 
-      // Smart Triage / Routing Link atau Topik Mentah
-      const isProductLink =
-        text.includes("shopee.co.id") ||
-        text.includes("tokopedia.com") ||
-        text.includes("blibli.com") ||
-        text.includes("lazada.co.id") ||
-        text.toLowerCase().startsWith("review ") ||
-        text.toLowerCase().includes("spek ") ||
-        text.toLowerCase().includes("tws") ||
-        text.toLowerCase().includes("keyboard");
+      // Respons cerdas untuk teks/link biasa saat Dify API Key belum disetel
+      const isLikelyProduct = /(review|spesifikasi|spek|laptop|hp|tws|keyboard|mouse|headset|gadget|shopee|tokopedia)/i.test(text);
+      const fallbackDispatchId = savePendingDispatch({
+        topic: text,
+        angle: "Instruksi Langsung CEO via Telegram",
+      });
 
-      if (isProductLink) {
-        const productTriageText = [
-          `📦 *[ANALISIS ASSIGNMENT DESK - TIM 0]*`,
-          ``,
-          `Input Anda:`,
-          `_"${text}"_`,
-          ``,
-          `Terdeteksi sebagai: 🔬 *Review Produk / Panduan Belanja*`,
-          ``,
-          `💡 *Rekomendasi:* Masuk ke *Tim 2 (DaeReview Product Lab)* untuk menguji klaim spek hardware, The Catch, rasio nilai-ke-harga, dan rekomendasi beli/skip.`,
-          ``,
-          `Silakan tentukan divisi yang ditugaskan:`,
-        ].join("\n");
+      const fallbackMsg = [
+        `🤖 *[Tim 0: DaeReview Project Manager]*`,
+        ``,
+        `Menerima ide/topik:`,
+        `*${text}*`,
+        ``,
+        `🎯 *Rekomendasi Analisis Awal:*`,
+        `Topik ini cocok digarap oleh *${isLikelyProduct ? "Tim 2: Product Lab" : "Tim 1: Newsroom"}*.`,
+        ``,
+        `💡 *Info AI:* Untuk mengaktifkan obrolan interaktif penuh dengan Gemini 3.1 Flash-Lite, pastikan variabel \`DIFY_PM_API_KEY\` sudah disetel di environment.`,
+        ``,
+        `Klik tombol di bawah untuk langsung menugaskan:`,
+      ].join("\n");
 
-        await sendTelegramMessage(chatId, productTriageText, {
-          inline_keyboard: [
-            [
-              {
-                text: "🔬 Tugaskan Tim 2: Product Lab (Rekomendasi)",
-                callback_data: `dispatch_product:${encodeURIComponent(text.slice(0, 100))}`,
-              },
-            ],
-            [
-              {
-                text: "📰 Tetap Jadikan Berita (Tim 1: Newsroom)",
-                callback_data: `dispatch_news:${encodeURIComponent(text.slice(0, 100))}`,
-              },
-            ],
+      await sendTelegramMessage(chatId, fallbackMsg, {
+        inline_keyboard: [
+          [
+            {
+              text: isLikelyProduct ? "🔬 Gas Tim 2 (Product Lab)" : "🚀 Gas Tim 1 (Newsroom)",
+              callback_data: isLikelyProduct ? `disp_lab:${fallbackDispatchId}` : `disp_news:${fallbackDispatchId}`,
+            },
+            {
+              text: isLikelyProduct ? "🚀 Alihkan ke Tim 1 (News)" : "🔬 Alihkan ke Tim 2 (Lab)",
+              callback_data: isLikelyProduct ? `disp_news:${fallbackDispatchId}` : `disp_lab:${fallbackDispatchId}`,
+            },
           ],
-        });
-      } else {
-        const newsTriageText = [
-          `📰 *[ANALISIS ASSIGNMENT DESK - TIM 0]*`,
-          ``,
-          `Input Anda:`,
-          `_"${text}"_`,
-          ``,
-          `Terdeteksi sebagai: 📰 *Isu Berita / Tren Teknologi*`,
-          ``,
-          `💡 *Rekomendasi:* Masuk ke *Tim 1 (DaeReview Newsroom)* untuk ditulis sebagai artikel jurnalisme tajam, padat, dan mengalir *tanpa* format belanja.`,
-          ``,
-          `Silakan tentukan divisi yang ditugaskan:`,
-        ].join("\n");
-
-        await sendTelegramMessage(chatId, newsTriageText, {
-          inline_keyboard: [
-            [
-              {
-                text: "📰 Tugaskan Tim 1: Newsroom (Rekomendasi)",
-                callback_data: `dispatch_news:${encodeURIComponent(text.slice(0, 100))}`,
-              },
-            ],
-            [
-              {
-                text: "🔬 Jadikan Ulasan Produk (Tim 2: Product Lab)",
-                callback_data: `dispatch_product:${encodeURIComponent(text.slice(0, 100))}`,
-              },
-            ],
+          [
+            { text: "💡 Brainstorm Tren", callback_data: "pick_trend:0" },
+            { text: "✏️ Kelola Draf", url: `${SITE_URL}/admin/berita` },
           ],
-        });
-      }
+        ],
+      });
 
       return NextResponse.json({ ok: true });
     }

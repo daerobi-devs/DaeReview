@@ -60,3 +60,47 @@ export function getPendingDispatch(id: string): PendingDispatch | null {
     return null;
   }
 }
+
+const CONV_FILE = path.join(process.cwd(), "src", "data", "telegram_conversations.json");
+
+export function getStoredConversationId(chatId: string | number): string {
+  try {
+    if (!fs.existsSync(CONV_FILE)) return "";
+    const data = JSON.parse(fs.readFileSync(CONV_FILE, "utf-8"));
+    return data[String(chatId)] || "";
+  } catch {
+    return "";
+  }
+}
+
+export function saveStoredConversationId(chatId: string | number, conversationId: string): void {
+  try {
+    const dir = path.dirname(CONV_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    let data: Record<string, string> = {};
+    if (fs.existsSync(CONV_FILE)) {
+      try {
+        data = JSON.parse(fs.readFileSync(CONV_FILE, "utf-8"));
+      } catch {
+        data = {};
+      }
+    }
+    data[String(chatId)] = conversationId;
+    fs.writeFileSync(CONV_FILE, JSON.stringify(data, null, 2), "utf-8");
+  } catch (err) {
+    console.warn("Gagal simpan telegram conversation ID:", err);
+  }
+}
+
+export function clearStoredConversationId(chatId: string | number): void {
+  try {
+    if (!fs.existsSync(CONV_FILE)) return;
+    const data = JSON.parse(fs.readFileSync(CONV_FILE, "utf-8"));
+    delete data[String(chatId)];
+    fs.writeFileSync(CONV_FILE, JSON.stringify(data, null, 2), "utf-8");
+  } catch (err) {
+    console.warn("Gagal clear telegram conversation ID:", err);
+  }
+}
+
+
