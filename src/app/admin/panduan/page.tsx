@@ -85,12 +85,31 @@ export default function AdminPanduanPage() {
   } | null>(null);
   const [isCompressing, setIsCompressing] = useState(false);
 
-  // Load products
+  // Load products (sync with /api/products so Supabase & server data appear)
+  const loadProducts = async () => {
+    const local = getAllProducts();
+    setProducts(local);
+
+    try {
+      const res = await fetch("/api/products");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.products && Array.isArray(data.products)) {
+          const serverIds = new Set(data.products.map((p: Product) => p.id));
+          const localOnly = local.filter((p) => p.isCustom && !serverIds.has(p.id));
+          setProducts([...localOnly, ...data.products]);
+        }
+      }
+    } catch (err) {
+      console.warn("Gagal memuat produk dari server:", err);
+    }
+  };
+
   useEffect(() => {
-    setProducts(getAllProducts());
+    loadProducts();
 
     const handleUpdate = () => {
-      setProducts(getAllProducts());
+      loadProducts();
     };
 
     window.addEventListener(PRODUCTS_UPDATE_EVENT, handleUpdate);
@@ -206,13 +225,23 @@ export default function AdminPanduanPage() {
 
     if (isEditing && editingId) {
       updateProduct(editingId, productPayload);
+      fetch("/api/products", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingId, ...productPayload }),
+      }).catch((e) => console.warn("Gagal simpan update produk ke server:", e));
       setToastMessage(`Produk "${name}" berhasil diperbarui!`);
     } else {
-      saveProduct({
+      const newProd = saveProduct({
         ...productPayload,
         rank: products.length + 1,
         specs: { Garansi: "1 Tahun Resmi" },
       } as any);
+      fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newProd),
+      }).catch((e) => console.warn("Gagal simpan produk baru ke server:", e));
       setToastMessage(`Produk "${name}" berhasil ditambahkan ke katalog!`);
     }
 
@@ -225,6 +254,10 @@ export default function AdminPanduanPage() {
   const handleDeleteProduct = (id: string, prodName: string) => {
     if (confirm(`Yakin ingin menghapus produk "${prodName}" dari katalog?`)) {
       deleteProduct(id);
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+      fetch(`/api/products?id=${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      }).catch((e) => console.warn("Gagal hapus produk di server:", e));
       setToastMessage(`Produk "${prodName}" berhasil dihapus.`);
       setTimeout(() => setToastMessage(null), 3000);
     }

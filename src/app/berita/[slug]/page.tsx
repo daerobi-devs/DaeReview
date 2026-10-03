@@ -20,12 +20,14 @@ import type { Metadata } from "next";
 import fs from "fs";
 import path from "path";
 import { NewsArticle } from "@/data/mockData";
+import { supabaseAdmin } from "@/lib/supabase";
 
 interface ArticlePageProps {
   params: Promise<{ slug: string }>;
 }
 
-function getArticleServer(slug: string): NewsArticle | undefined {
+async function getArticleServer(slug: string): Promise<NewsArticle | undefined> {
+  // 1. Cek dari file storage persisten server
   try {
     const dataFile = path.join(process.cwd(), "src", "data", "custom_news.json");
     if (fs.existsSync(dataFile)) {
@@ -37,6 +39,50 @@ function getArticleServer(slug: string): NewsArticle | undefined {
   } catch (e) {
     // fallback
   }
+
+  // 2. Cek dari Supabase Database (public.articles)
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("articles")
+      .select("*")
+      .eq("slug", slug)
+      .maybeSingle();
+
+    if (!error && data) {
+      return {
+        id: data.id,
+        slug: data.slug,
+        title: data.title,
+        category: data.category,
+        summary: data.summary,
+        content: Array.isArray(data.content) ? data.content : [data.summary],
+        image: data.image,
+        author: data.author || "Tim Riset DaeReview",
+        readTime: data.read_time || "4 menit",
+        date: data.published_at
+          ? new Intl.DateTimeFormat("id-ID", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            }).format(new Date(data.published_at))
+          : new Intl.DateTimeFormat("id-ID", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            }).format(new Date()),
+        isTrending: Boolean(data.is_trending),
+        isFactCheck: Boolean(data.is_fact_check),
+        verdictFactCheck: data.verdict_fact_check || undefined,
+        quickTakeaway: data.quick_takeaway || undefined,
+        relatedProductId: data.related_product_id || undefined,
+        tiktokUrl: data.tiktok_url || undefined,
+        isCustom: true,
+      };
+    }
+  } catch (dbErr) {
+    // fallback
+  }
+
   return MOCK_NEWS.find((item) => item.slug === slug);
 }
 
@@ -64,7 +110,7 @@ function getOtherArticlesServer(currentId: string): NewsArticle[] {
 
 export async function generateMetadata({ params }: ArticlePageProps): Promise<Metadata> {
   const { slug } = await params;
-  const article = getArticleServer(slug);
+  const article = await getArticleServer(slug);
 
   if (!article) {
     return {
@@ -108,7 +154,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
 
 export default async function ArticlePage({ params }: ArticlePageProps) {
   const { slug } = await params;
-  const article = getArticleServer(slug);
+  const article = await getArticleServer(slug);
 
   if (!article) {
     notFound();

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { NewsArticle } from "@/data/mockData";
+import { supabaseAdmin } from "@/lib/supabase";
 import fs from "fs";
 import path from "path";
 
@@ -140,7 +141,36 @@ export async function POST(request: Request) {
       isCustom: true,
     };
 
-    // 4. Simpan ke Database / File
+    // 4. Simpan ke Supabase Database (public.articles)
+    try {
+      const { error: dbError } = await supabaseAdmin.from("articles").upsert(
+        {
+          slug: newArticle.slug,
+          title: newArticle.title,
+          category: newArticle.category,
+          summary: newArticle.summary,
+          content: newArticle.content,
+          image: newArticle.image,
+          author: newArticle.author,
+          read_time: newArticle.readTime,
+          is_trending: newArticle.isTrending,
+          is_fact_check: newArticle.isFactCheck,
+          verdict_fact_check: newArticle.verdictFactCheck || null,
+          quick_takeaway: newArticle.quickTakeaway || null,
+          related_product_id: newArticle.relatedProductId || null,
+          tiktok_url: newArticle.tiktokUrl || null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "slug" }
+      );
+      if (dbError) {
+        console.warn("Catatan simpan Supabase (articles):", dbError.message);
+      }
+    } catch (dbErr) {
+      console.warn("Gagal simpan ke Supabase:", dbErr);
+    }
+
+    // 5. Simpan ke File Storage Persisten Server (Cache Cepat)
     const current = readCustomNews();
     const updated = [newArticle, ...current.filter((a) => a.slug !== newArticle.slug)];
     writeCustomNews(updated);
