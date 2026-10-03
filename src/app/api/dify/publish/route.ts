@@ -97,6 +97,79 @@ async function fetchOgImage(urlStr: string): Promise<string | null> {
   }
 }
 
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8810761979:AAFTbAVxgfarUaqN7JBPmVc9liWFKjPMR4o";
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "7045828398";
+
+async function notifyTelegram(article: NewsArticle, theCatch?: string, productLink?: string) {
+  try {
+    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
+
+    const lines = [
+      `📢 *[DRAF DITERBITKAN OLEH DIFY SQUAD]*`,
+      ``,
+      `📌 *Judul:*`,
+      `${article.title}`,
+      ``,
+      `🏷️ *Kategori:* ${article.category} • ⏱️ ${article.readTime}`,
+      theCatch ? `⚠️ *The Catch:* _${theCatch}_` : "",
+      productLink ? `🔗 *Sumber Link:* ${productLink}` : "",
+      ``,
+      `💡 *Ringkasan:*`,
+      `${article.summary}`,
+    ].filter(Boolean);
+
+    const message = lines.join("\n");
+    const replyMarkup = {
+      inline_keyboard: [
+        [
+          {
+            text: "🌐 Baca di Portal",
+            url: `https://daereview.daeroom.my.id/berita/${article.slug}`,
+          },
+          {
+            text: "✏️ Kelola di Admin",
+            url: "https://daereview.daeroom.my.id/admin/berita",
+          },
+        ],
+      ],
+    };
+
+    // 1. Coba kirimkan bersama foto jika ada URL gambar valid
+    if (article.image && article.image.startsWith("http")) {
+      try {
+        const photoRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: TELEGRAM_CHAT_ID,
+            photo: article.image,
+            caption: message.slice(0, 1024),
+            parse_mode: "Markdown",
+            reply_markup: replyMarkup,
+          }),
+        });
+        if (photoRes.ok) return;
+      } catch {
+        // fallback ke pesan teks
+      }
+    }
+
+    // 2. Fallback pesan teks biasa
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: TELEGRAM_CHAT_ID,
+        text: message,
+        parse_mode: "Markdown",
+        reply_markup: replyMarkup,
+      }),
+    });
+  } catch (e) {
+    console.error("Gagal mengirim notifikasi Telegram:", e);
+  }
+}
+
 /**
  * Endpoint Khusus untuk Dify AI Agent
  * Memungkinkan Dify Workflow menerbitkan artikel berita, tren, cek fakta, atau ulasan produk
@@ -270,6 +343,9 @@ export async function POST(request: Request) {
     const current = readCustomNews();
     const updated = [newArticle, ...current.filter((a) => a.slug !== newArticle.slug)];
     writeCustomNews(updated);
+
+    // 6. Notifikasi Human-in-the-Loop ke Bot Telegram Pribadi Owner
+    await notifyTelegram(newArticle, body.the_catch || body.theCatch, body.product_link || body.productLink);
 
     return NextResponse.json({
       success: true,
