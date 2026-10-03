@@ -34,8 +34,9 @@ export default function AdminDifyAIPage() {
   const [drafts, setDrafts] = useState<DifyDraft[]>([]);
   const [difyServerUrl] = useState("https://dify.daeroom.my.id");
   const [apiKey, setApiKey] = useState("");
-  const [generationType, setGenerationType] = useState<"FAKTA_MITOS" | "PANDUAN_BELANJA" | "BERITA_TREN">("FAKTA_MITOS");
+  const [generationType, setGenerationType] = useState<"FAKTA_MITOS" | "PANDUAN_BELANJA" | "BERITA_TREN" | "TOP_PICKS">("FAKTA_MITOS");
   const [topic, setTopic] = useState("");
+  const [productLinksText, setProductLinksText] = useState("");
   const [category, setCategory] = useState("Fakta vs Mitos");
   const [isGenerating, setIsGenerating] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<"IDLE" | "CHECKING" | "CONNECTED">("CONNECTED");
@@ -117,8 +118,11 @@ TUGAS & STANDAR REDAKSI UTAMA:
       let newTitle = topic.trim();
       let summaryText = "";
       let paragraphs: string[] = [];
+      let recs: any[] | undefined = undefined;
+      let draftType: "FAKTA_MITOS" | "PANDUAN_BELANJA" | "BERITA_TREN" = "BERITA_TREN";
 
       if (generationType === "FAKTA_MITOS") {
+        draftType = "FAKTA_MITOS";
         newTitle = topic.toLowerCase().startsWith("fakta") ? topic : `Fakta vs Mitos: ${topic}`;
         summaryText = `Kajian riset teknis dan pengujian data empiris seputar ${topic}. Membongkar salah kaprah umum di masyarakat.`;
         paragraphs = [
@@ -127,6 +131,7 @@ TUGAS & STANDAR REDAKSI UTAMA:
           `Vonis Redaksi DaeReview: Pembaca disarankan untuk lebih bijak membedakan antara batasan hardware aktual dengan rumor tak berdasar. Selalu periksa sertifikasi resmi sebelum membeli.`
         ];
       } else if (generationType === "PANDUAN_BELANJA") {
+        draftType = "PANDUAN_BELANJA";
         newTitle = `Panduan Belanja & Rekomendasi Teruji: ${topic} Terbaik 2026`;
         summaryText = `Riset perbandingan harga, spesifikasi teknis, dan verifikasi ulasan pembeli riil di Shopee dan Tokopedia untuk ${topic}.`;
         paragraphs = [
@@ -134,7 +139,39 @@ TUGAS & STANDAR REDAKSI UTAMA:
           `Formula 4 lapis kami menganalisis keawetan material, garansi distributor resmi, serta rating keaslian pembeli untuk menyaring pilihan paling worth-it untuk Anda.`,
           `Kesimpulan kurasi: Jangan tergoda harga murah yang mengorbankan kualitas keselamatan dan kenyamanan pemakaian jangka panjang.`
         ];
+      } else if (generationType === "TOP_PICKS") {
+        draftType = "PANDUAN_BELANJA";
+        newTitle = `5 Rekomendasi ${topic} Terbaik 2026: Teruji Awet & Nilai Tertinggi`;
+        summaryText = `Kurasi komparasi produk mendalam untuk ${topic}. Menyaring pilihan terbaik dari marketplace berdasarkan efisiensi biaya dan daya tahan pemakaian.`;
+        paragraphs = [
+          `Mencari produk ${topic} yang benar-benar memuaskan membutuhkan perbandingan spesifikasi yang teliti. Redaksi DaeReview mengumpulkan produk unggulan dan menguji performanya.`,
+          `Dari analisis data pengujian laboratorium dan ulasan pembeli terverifikasi, kami menyusun urutan rekomendasi berdasarkan ketahanan komponen, garansi resmi, dan rasio value-for-money.`,
+          `Vonis akhir: Prioritaskan produk dengan perlindungan purna jual resmi dan reputasi toko yang terpercaya.`
+        ];
+        recs = [
+          {
+            name: `${topic} Pilihan Utama Redaksi`,
+            price: "Rp 249.000",
+            specs: "Spesifikasi Unggulan, Garansi Resmi 1 Tahun",
+            pros: "Material kokoh, performa konsisten, dan akurasi tinggi",
+            cons: "Harga sedikit di atas rata-rata pasar",
+            shopeeUrl: "https://shopee.co.id",
+            tokopediaUrl: "https://tokopedia.com",
+            tiktokUrl: productLinksText ? productLinksText : "https://shop.tiktok.com",
+          },
+          {
+            name: `${topic} Pilihan Budget Paling Worth-It`,
+            price: "Rp 149.000",
+            specs: "Desain Ergonomis, Hemat Daya",
+            pros: "Harga terjangkau dengan fungsi utama andal",
+            cons: "Aksesoris bawaan minimalis",
+            shopeeUrl: "https://shopee.co.id",
+            tokopediaUrl: "https://tokopedia.com",
+            tiktokUrl: "https://shop.tiktok.com",
+          }
+        ];
       } else {
+        draftType = "BERITA_TREN";
         newTitle = `Tren Belanja & Wawasan Pasar: ${topic}`;
         summaryText = `Analisis pergerakan harga diskon, kupon marketplace, dan strategi cerdas mengamankan penawaran terbaik.`;
         paragraphs = [
@@ -144,16 +181,18 @@ TUGAS & STANDAR REDAKSI UTAMA:
       }
 
       addDifyDraft({
-        type: generationType,
+        type: draftType,
         title: newTitle,
         category,
         summary: summaryText,
         content: paragraphs,
+        productRecommendations: recs,
       });
 
       setDrafts(getDifyDrafts());
       setIsGenerating(false);
       setTopic("");
+      setProductLinksText("");
       setToastMessage(`Draf baru "${newTitle.substring(0, 35)}..." berhasil dibuat oleh Dify AI!`);
       setTimeout(() => setToastMessage(null), 3500);
     }, 2000);
@@ -416,6 +455,7 @@ TUGAS & STANDAR REDAKSI UTAMA:
               >
                 <option value="FAKTA_MITOS">Fakta vs Mitos (Universal)</option>
                 <option value="PANDUAN_BELANJA">Panduan Belanja (Buying Guide)</option>
+                <option value="TOP_PICKS">5 Barang Terbaik (Kurasi Multi-Produk dari Link)</option>
                 <option value="BERITA_TREN">Kabar & Tren Belanja</option>
               </select>
             </div>
@@ -440,17 +480,36 @@ TUGAS & STANDAR REDAKSI UTAMA:
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Topik / Kata Kunci Spesifik
+                {generationType === "TOP_PICKS" ? "Koleksi Barang yang Dikurasi" : "Topik / Kata Kunci Spesifik"}
               </label>
               <input
                 type="text"
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
-                placeholder="Contoh: Mitos Fast Charging 120W Bikin Rusak Baterai"
+                placeholder={
+                  generationType === "TOP_PICKS"
+                    ? "Contoh: Earphone TWS Murah atau Smartwatch Baterai Awet"
+                    : "Contoh: Mitos Fast Charging 120W Bikin Rusak Baterai"
+                }
                 required
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-hidden focus:border-blue-900 focus:bg-white text-xs"
               />
             </div>
+
+            {generationType === "TOP_PICKS" && (
+              <div className="sm:col-span-3">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Cantumkan Tautan Produk (TikTok Shop / Shopee / Tokopedia)
+                </label>
+                <input
+                  type="text"
+                  value={productLinksText}
+                  onChange={(e) => setProductLinksText(e.target.value)}
+                  placeholder="https://vt.tiktok.com/... atau link Shopee / Tokopedia produk yang ingin dimasukkan ke kurasi 5 barang terbaik"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-hidden focus:border-blue-900 focus:bg-white text-xs font-mono"
+                />
+              </div>
+            )}
           </div>
 
           <button

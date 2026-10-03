@@ -19,6 +19,7 @@ export interface Product {
   tiktokUrl?: string;
   verifiedOfficial: boolean;
   verdict: string;
+  isCustom?: boolean;
 }
 
 export interface NewsArticle {

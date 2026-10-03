@@ -13,6 +13,7 @@ export interface DifyDraft {
     cons: string;
     shopeeUrl?: string;
     tokopediaUrl?: string;
+    tiktokUrl?: string;
   }[];
   createdAt: string;
   status: "DRAFT" | "PUBLISHED";
