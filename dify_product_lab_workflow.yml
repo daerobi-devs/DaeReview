@@ -249,8 +249,8 @@ workflow:
           completion_params:
             temperature: 0.3
           mode: chat
-          name: gemini-2.5-flash
-          provider: langgenius/gemini/gemini
+          name: gemini-3.1-flash-lite
+          provider: langgenius/gemini/google
         prompt_template:
         - id: auditor-sys-1
           role: system
@@ -299,8 +299,8 @@ workflow:
           completion_params:
             temperature: 0.3
           mode: chat
-          name: gemini-2.5-flash
-          provider: langgenius/gemini/gemini
+          name: gemini-3.1-flash-lite
+          provider: langgenius/gemini/google
         prompt_template:
         - id: profiler-sys-1
           role: system
@@ -346,8 +346,8 @@ workflow:
           completion_params:
             temperature: 0.2
           mode: chat
-          name: gemini-2.5-flash
-          provider: langgenius/gemini/gemini
+          name: gemini-3.1-flash-lite
+          provider: langgenius/gemini/google
         prompt_template:
         - id: lead-sys-1
           role: system
